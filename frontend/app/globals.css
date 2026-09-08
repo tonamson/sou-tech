@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+:root {
+  --primary: #0B1220;
+  --secondary: #1E3A8A;
+  --accent: #DAAF37;
+  --neutral: #E5E7EB;
+  --background: #070D14;
+  --foreground: #E5E7EB;
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-neutral: var(--neutral);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes waveFlowBlue {
+  0% {
+    transform: translateY(0px) scaleY(1);
+  }
+  50% {
+    transform: translateY(-24px) scaleY(1.08);
+  }
+  100% {
+    transform: translateY(0px) scaleY(1);
+  }
+}
+
+@keyframes waveFlowAmber {
+  0% {
+    transform: translateY(0px) scaleY(1);
+  }
+  50% {
+    transform: translateY(22px) scaleY(1.06);
+  }
+  100% {
+    transform: translateY(0px) scaleY(1);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.06);
+  }
+}
+
+.css-wave-blue {
+  animation: waveFlowBlue 12s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.css-wave-amber {
+  animation: waveFlowAmber 15s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.css-ambient-pulse {
+  animation: pulseGlow 9s ease-in-out infinite alternate;
+}
