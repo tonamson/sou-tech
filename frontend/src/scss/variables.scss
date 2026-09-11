@@ -1,0 +1,65 @@
+// Site design tokens — shared fallbacks. Comments in English only.
+
+$dash-font-stack: "Manrope", sans-serif;
+
+// SoU landing tokens (user palette + spec secondary/glow)
+.landing {
+  --landing-primary: #0b1220;
+  --landing-secondary: #19314a;
+  --landing-glow: #244e7a;
+  // Solid accent fallback — used where a plain color is still required (borders, shadow tints)
+  --landing-accent: #a68040;
+  --landing-accent-lt: #e8c45a;
+  // Gold gradient accent (dark #A68040 bottom-left -> light #E7CE93 top-right)
+  --landing-accent-1: #a68040;
+  --landing-accent-2: #e7ce93;
+  --landing-accent-grad: linear-gradient(
+    to top right,
+    var(--landing-accent-1),
+    var(--landing-accent-2)
+  );
+  --landing-neutral: #e5e7eb;
+  --landing-bg: linear-gradient(to right, #ecedef, #f4f5f8);
+  --landing-ink: #0b1220;
+  --landing-muted: #5c6575;
+  --landing-muted-dark: #9aa3b2;
+  --landing-white: #ffffff;
+  --landing-surface: #ffffff;
+  --landing-font: "Manrope", sans-serif;
+  --landing-radius: 12px;
+  --landing-nav-padding-y: 1rem;
+  --landing-nav-padding-x: 5%;
+  --landing-max: 1180px;
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+html,
+body {
+  font-family: $dash-font-stack;
+  font-style: normal;
+  font-weight: 400;
+  background: #f0f0f2;
+}
+
+.h1,
+.h2,
+.h3,
+.h4,
+.h5,
+.h6,
+.btn,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+button,
+a {
+  margin: 0;
+  font-family: $dash-font-stack;
+  font-style: normal;
+}

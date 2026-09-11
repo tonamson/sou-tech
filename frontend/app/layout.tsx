@@ -1,29 +1,34 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import { Manrope } from "next/font/google";
+import "../src/scss/style.scss";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const manrope = Manrope({
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "SoU Technology Solution - A Brighter Tomorrow",
-  description: "People. Technology. Solutions. Software, AI, Cloud & Systems Integration.",
+  title: "SOU - Đối tác phát triển phần mềm & hạ tầng số · SoU Technology Solutions",
+  description:
+    "SOU - Đối tác phát triển phần mềm & hạ tầng số — Web3, SaaS & hệ thống doanh nghiệp.",
+  icons: {
+    icon: "/client/images/favicon.svg",
+    apple: "/client/images/favicon.svg",
+  },
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
-    >
-      <body className="min-h-full flex flex-col bg-[#070D14] text-[#E5E7EB] selection:bg-[#DAAF37]/30 selection:text-[#DAAF37]">{children}</body>
+    <html lang="vi" className={manrope.className}>
+      <head>
+        <link rel="stylesheet" href="/client/css/bootstrap.min.css" />
+        <link
+          rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        />
+      </head>
+      <body className="landing landing--stage">{children}</body>
     </html>
   );
 }

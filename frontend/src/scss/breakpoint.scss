@@ -1,0 +1,94 @@
+@use "sass:map";
+/* media size */
+$mobile-mini-width: 320px;
+$mobile-width: 480px;
+$tablet-width: 768px;
+$desktop-sm-width: 1024px;
+$desktop-width: 1366px;
+$desktop-width-xxl: 1440px;
+$breakpoints: (
+  sm: 480px,
+  md: 1024px,
+  lg: 1366px,
+);
+
+@mixin xs {
+  @media (max-width: #{$mobile-mini-width}) {
+    @content;
+  }
+}
+
+@mixin sm {
+  @media (min-width: #{$mobile-mini-width}) and (max-width: #{$mobile-width - 1px}) {
+    @content;
+  }
+}
+
+@mixin md {
+  @media (min-width: #{$tablet-width}) and (max-width: #{$desktop-sm-width - 1px}) {
+    @content;
+  }
+}
+
+@mixin lg {
+  @media (min-width: #{$desktop-sm-width}) and (max-width: #{$desktop-width}) {
+    @content;
+  }
+}
+
+@mixin xl {
+  @media (min-width: #{$desktop-width}) and (max-width: #{$desktop-width-xxl}) {
+    @content;
+  }
+}
+
+@mixin xxl {
+  @media (min-width: #{$desktop-width-xxl + 1px}) {
+    @content;
+  }
+}
+
+// Min-width desktop (above tablet); use instead of ad-hoc 992px / lg duplicate blocks
+@mixin desktop-sm-up {
+  @media (min-width: #{$desktop-sm-width}) {
+    @content;
+  }
+}
+
+/* Landscape breakpoints for mobile and tablet */
+@mixin mobile-landscape {
+  @media (min-width: #{$mobile-mini-width}) and (max-width: #{$desktop-sm-width}) and (orientation: landscape) {
+    @content;
+  }
+}
+
+@mixin tablet-landscape {
+  @media (min-width: #{$mobile-width + 1px}) and (max-width: #{$desktop-sm-width}) and (orientation: landscape) {
+    @content;
+  }
+}
+
+@mixin media($keys...) {
+  @each $key in $keys {
+    @media screen and (max-width: map.get($breakpoints, $key)) {
+      @content;
+    }
+  }
+}
+@mixin dash-laptop {
+  @media (max-width: 1439.98px) {
+    @content;
+  }
+}
+
+@mixin dash-down-xl {
+  @media (max-width: 1199.98px) {
+    @content;
+  }
+}
+
+@mixin dash-down-lg {
+  @media (max-width: 991.98px) {
+    @content;
+  }
+}

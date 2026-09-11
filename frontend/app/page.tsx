@@ -1,283 +1,213 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-
+import LandingEffects from "@/src/components/LandingEffects";
 
 export default function Home() {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    let animationId: number;
-    let width = (canvas.width = window.innerWidth);
-    let height = (canvas.height = window.innerHeight);
-
-    const handleResize = () => {
-      if (!canvas) return;
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
-    };
-
-    window.addEventListener("resize", handleResize);
-
-    // Exactly 2 primary ocean wave ribbons: 1 Electric Blue & 1 Golden Amber
-    // Gerstner/Trochoidal oceanic curvature: steep peaks, gentle broad troughs like real ocean swells
-    const waves = [
-      {
-        id: "blue",
-        colorStops: [
-          { stop: 0, color: "#1D4ED8" },
-          { stop: 0.35, color: "#2563EB" },
-          { stop: 0.75, color: "#38BDF8" },
-          { stop: 1, color: "#BAE6FD" },
-        ],
-        glowColor: "#38BDF8",
-        amplitude: 110,      // Biên độ uốn lượn sâu, dập dềnh rõ nét
-        frequency: 0.0014,   // Bước sóng cân đối tạo 2-3 nhịp uốn lượn ngoạn mục qua màn hình
-        speed: 0.008,        // Tốc độ trôi tự nhiên
-        phase: 0.8,
-        yOffsetRatio: 0.53,
-        glowBlur: 24,
-      },
-      {
-        id: "amber",
-        colorStops: [
-          { stop: 0, color: "#92400E" },
-          { stop: 0.35, color: "#D97706" },
-          { stop: 0.75, color: "#DAAF37" },
-          { stop: 1, color: "#FEF08A" },
-        ],
-        glowColor: "#DAAF37",
-        amplitude: 115,      // Biên độ sâu, đan xen nhịp nhàng
-        frequency: 0.0013,
-        speed: -0.007,       // Chảy ngược chiều uyển chuyển
-        phase: 3.6,
-        yOffsetRatio: 0.47,
-        glowBlur: 24,
-      },
-    ];
-
-    let time = 0;
-
-    const render = () => {
-      time += 1;
-      ctx.clearRect(0, 0, width, height);
-
-      waves.forEach((wave) => {
-        const baseOffsetY = height * wave.yOffsetRatio;
-
-        // Gerstner Trochoidal ocean wave simulation:
-        // Đỉnh sóng cong vút mềm mại, đáy sóng võng tròn rộng đặc trưng của sóng biển
-        const points: { x: number; y: number }[] = [];
-        for (let x = -40; x <= width + 60; x += 4) {
-          const t = time * wave.speed;
-          
-          // Primary oceanic swell (sóng chính)
-          const angle1 = x * wave.frequency + t + wave.phase;
-          // Trochoidal sharpening factor (đỉnh uốn cong mềm mại, bụng sóng tròn rộng)
-          const yTrochoid = Math.pow((Math.sin(angle1) + 1) / 2, 1.6) * 2 - 1;
-          
-          // Harmonic secondary swell (sóng con trợ lực tạo nhịp nhấp nhô sống động)
-          const angle2 = x * (wave.frequency * 0.58) - t * 0.75 + wave.phase * 0.5;
-          const y2 = Math.sin(angle2) * (wave.amplitude * 0.4);
-          
-          // Modulation wave (biên độ dao động theo vị trí màn hình)
-          const mod = 0.75 + 0.35 * Math.sin(x * 0.0007 + t * 0.3);
-
-          const y = baseOffsetY + (yTrochoid * wave.amplitude * 0.75 + y2) * mod;
-          points.push({ x, y });
-        }
-
-        const drawPath = () => {
-          ctx.beginPath();
-          if (points.length === 0) return;
-          ctx.moveTo(points[0].x, points[0].y);
-          for (let i = 1; i < points.length - 1; i++) {
-            const xc = (points[i].x + points[i + 1].x) / 2;
-            const yc = (points[i].y + points[i + 1].y) / 2;
-            ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
-          }
-          ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
-        };
-
-        const createGradient = () => {
-          const grad = ctx.createLinearGradient(0, 0, width, 0);
-          wave.colorStops.forEach((cs) => grad.addColorStop(cs.stop, cs.color));
-          return grad;
-        };
-
-        // Layer 1: Soft Ambient Glow (Hào quang tản sắc thanh mảnh 18px, tạo độ mềm không bị thô)
-        ctx.save();
-        ctx.globalAlpha = 0.25;
-        ctx.shadowColor = wave.glowColor;
-        ctx.shadowBlur = 30;
-        ctx.strokeStyle = createGradient();
-        ctx.lineWidth = 16;
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        drawPath();
-        ctx.stroke();
-        ctx.restore();
-
-        // Layer 2: Sleek Elegant Silk Line (Đường nét thanh thoát 3.5px, mềm mại tinh tế)
-        ctx.save();
-        ctx.globalAlpha = 0.9;
-        ctx.shadowColor = wave.glowColor;
-        ctx.shadowBlur = 15;
-        ctx.strokeStyle = createGradient();
-        ctx.lineWidth = 3.5;
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        drawPath();
-        ctx.stroke();
-        ctx.restore();
-
-        // Layer 3: Fine Light Filament (Sợi tơ ánh sáng thanh mảnh 1.2px ở tâm)
-        ctx.save();
-        ctx.globalAlpha = 0.95;
-        ctx.shadowColor = "#FFFFFF";
-        ctx.shadowBlur = 8;
-        ctx.strokeStyle = wave.id === "blue" ? "#F0F9FF" : "#FFFBEB";
-        ctx.lineWidth = 1.2;
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        drawPath();
-        ctx.stroke();
-        ctx.restore();
-      });
-
-      animationId = requestAnimationFrame(render);
-    };
-
-    render();
-
-    return () => {
-      cancelAnimationFrame(animationId);
-      window.removeEventListener("resize", handleResize);
-    };
-  }, []);
-
-  const services = [
-    { title: "SOFTWARE" },
-    { title: "AI" },
-    { title: "CLOUD" },
-    { title: "SYSTEMS" },
-    { title: "INTEGRATION" },
-  ];
-
   return (
-    <main className="relative min-h-screen w-full overflow-hidden bg-[#070D14] text-[#E5E7EB] flex flex-col justify-between p-8 sm:p-12 md:p-16 lg:p-20 select-none">
-      {/* 1. Deep Atmospheric Gradient Canvas */}
-      <div 
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background: "radial-gradient(circle 1600px at 70% 50%, #101B2E 0%, #0B1220 55%, #070D14 100%)",
-        }}
-      />
-
-      {/* 2. Soft Ambient Atmospheric Light Glows */}
-      <div className="pointer-events-none absolute top-[45%] right-[25%] h-[600px] w-[600px] -translate-y-1/2 rounded-full bg-[#1E3A8A]/20 blur-[160px] css-ambient-pulse" />
-      <div className="pointer-events-none absolute top-[55%] right-[15%] h-[450px] w-[450px] -translate-y-1/2 rounded-full bg-[#DAAF37]/12 blur-[150px] css-ambient-pulse" />
-
-      {/* 3. Real-Time Multi-Layer Oceanic Wave Ribbons (Fluid Hydrodynamic Motion) */}
-      <canvas
-        ref={canvasRef}
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
-      />
-
-
-      {/* 4. Soft Left Text Shield (Semi-transparent so wave passes smoothly underneath without obstructing text) */}
-      <div 
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background: "linear-gradient(to right, #070D14 15%, rgba(7, 13, 20, 0.65) 45%, transparent 75%)",
-        }}
-      />
-
-      {/* Top Section: Brand Identity & Services Column */}
-      <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-        {/* Brand Logo & Subtitle */}
-        <div className="md:col-span-8 flex flex-col items-start">
-          <div className="flex items-center gap-3.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/brand/logo-dark-transparent.png"
-              alt="SoU Logo"
-              className="h-10 sm:h-12 w-auto object-contain"
-            />
-            <div className="flex flex-col">
-              <div className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight flex items-baseline gap-2">
-                <div className="flex items-baseline">
-                  <span className="text-[#F8FAFC]">S</span>
-                  <span className="text-[#DAAF37] lowercase">o</span>
-                  <span className="text-[#F8FAFC]">U</span>
+    <>
+      <LandingEffects />
+<a className="landing-brand" href="#hero" data-slide="0" aria-label="SoU Technology Solutions — Trang chủ"><img className="landing-brand__logo" src="/client/images/logo.svg" alt="SoU Technology Solutions" loading="eager" decoding="async" /></a>
+    <nav className="landing-side-nav" id="landing-side-nav" aria-label="Điều hướng section">
+      <ul className="landing-side-nav__list" role="list">
+        <li role="listitem">
+          <button className="landing-side-nav__btn is-active" type="button" data-slide="0" aria-controls="hero"><span className="landing-side-nav__num">01</span><span className="landing-side-nav__label">Trang Chủ</span><span className="landing-side-nav__dot" aria-hidden="true"></span></button>
+        </li>
+        <li role="listitem">
+          <button className="landing-side-nav__btn" type="button" data-slide="1" aria-controls="why"><span className="landing-side-nav__num">02</span><span className="landing-side-nav__label">Về Chúng Tôi</span><span className="landing-side-nav__dot" aria-hidden="true"></span></button>
+        </li>
+        <li role="listitem">
+          <button className="landing-side-nav__btn" type="button" data-slide="2" aria-controls="capabilities"><span className="landing-side-nav__num">03</span><span className="landing-side-nav__label">Năng Lực</span><span className="landing-side-nav__dot" aria-hidden="true"></span></button>
+        </li>
+        <li role="listitem">
+          <button className="landing-side-nav__btn" type="button" data-slide="3" aria-controls="process"><span className="landing-side-nav__num">04</span><span className="landing-side-nav__label">Quy Trình</span><span className="landing-side-nav__dot" aria-hidden="true"></span></button>
+        </li>
+        <li role="listitem">
+          <button className="landing-side-nav__btn" type="button" data-slide="4" aria-controls="contact"><span className="landing-side-nav__num">05</span><span className="landing-side-nav__label">Liên Hệ</span><span className="landing-side-nav__dot" aria-hidden="true"></span></button>
+        </li>
+      </ul>
+    </nav>
+    <div className="landing-side-nav__progress" aria-hidden="true"><span id="landing-slide-progress"></span></div>
+    <div className="landing-counter" aria-hidden="true"><span id="landing-slide-current">01</span><span className="landing-counter__sep">/</span><span id="landing-slide-total">05</span></div>
+    <button className="landing-sheet-pill" id="landing-sheet-pill" type="button" aria-expanded="false" aria-controls="landing-track" aria-label="Mở nội dung section"><span className="landing-sheet-pill__num" id="landing-sheet-pill-num">01</span><span className="landing-sheet-pill__floor" id="landing-sheet-pill-floor">Lobby</span><span className="landing-sheet-pill__sep" aria-hidden="true">·</span><span className="landing-sheet-pill__title" id="landing-sheet-pill-title">Giải Pháp Công Nghệ</span><span className="landing-sheet-pill__chev" aria-hidden="true"><i className="fa-solid fa-chevron-up"></i></span></button>
+    <canvas className="landing-webgl" id="webgl-bg-canvas" aria-hidden="true"></canvas>
+    <main className="landing-stage" id="main-content">
+      <div className="landing-track" id="landing-track">
+        <section className="landing-slide is-active" id="hero" data-slide="0" aria-labelledby="hero-title">
+          <div className="container-fluid landing-slide__grid">
+            <div className="row align-items-center g-4 g-xl-5 h-100">
+              <div className="col-lg-6 landing-slide__copy">
+                <div className="landing-slide__content landing-slide__content--hero">
+                  <p className="landing-eyebrow landing-eyebrow--rule">Build Tomorrow, Together</p>
+                  <h2 className="landing-slide__title" id="hero-title"><span className="landing-slide__title-line">Giải Pháp Công Nghệ</span><span className="landing-slide__title-line landing-slide__title-line--accent">Cho Doanh Nghiệp Tương Lai</span></h2>
+                  <p className="landing-slide__desc">Chúng tôi đồng hành cùng doanh nghiệp kiến tạo giải pháp phần mềm hiện đại, tối ưu vận hành và mở ra cơ hội tăng trưởng trong kỷ nguyên số.</p>
+                  <div className="landing-slide__actions">
+                    <button className="landing-btn landing-btn--primary" type="button" data-slide="2">Khám Phá Dự Án<i className="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+                    <button className="landing-btn landing-btn--ghost" type="button" data-slide="4">Tư Vấn Ngay<i className="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+                  </div>
+                  <ul className="landing-features" role="list">
+                    <li className="landing-feature"><span className="landing-feature__icon" aria-hidden="true"><i className="fa-solid fa-shield-halved"></i></span><span className="landing-feature__text"><strong>Bảo mật</strong><small>Chuẩn Enterprise</small></span></li>
+                    <li className="landing-feature"><span className="landing-feature__icon" aria-hidden="true"><i className="fa-solid fa-chart-line"></i></span><span className="landing-feature__text"><strong>Hiệu suất cao</strong><small>Sẵn sàng mở rộng</small></span></li>
+                    <li className="landing-feature"><span className="landing-feature__icon" aria-hidden="true"><i className="fa-solid fa-cubes"></i></span><span className="landing-feature__text"><strong>Linh hoạt</strong><small>Tùy chỉnh theo nhu cầu</small></span></li>
+                    <li className="landing-feature"><span className="landing-feature__icon" aria-hidden="true"><i className="fa-solid fa-handshake"></i></span><span className="landing-feature__text"><strong>Đồng hành</strong><small>Dài hạn &amp; bền vững</small></span></li>
+                  </ul>
                 </div>
-                <span className="text-lg sm:text-xl md:text-2xl font-bold tracking-normal text-[#F8FAFC]">
-                  Technology Solution
-                </span>
+              </div>
+              <div className="col-lg-6 landing-slide__model" aria-hidden="true">
+                <div className="landing-slide__model-slot"></div>
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Right Column: Services Navigation / List */}
-        <div className="md:col-span-4 flex flex-col items-start md:items-end justify-start pt-1 md:pt-2">
-          <div className="flex flex-col items-start md:items-end gap-1.5 sm:gap-2 text-[#94A3B8] font-bold text-sm sm:text-base md:text-lg tracking-wider">
-            {services.map((item) => (
-              <span
-                key={item.title}
-                className="transition-colors duration-200 hover:text-[#DAAF37] cursor-pointer"
-              >
-                {item.title}
-              </span>
-            ))}
+        </section>
+        <section className="landing-slide" id="why" data-slide="1" aria-labelledby="why-title">
+          <div className="container-fluid landing-slide__grid">
+            <div className="row align-items-center g-4 g-xl-5 h-100">
+              <div className="col-lg-6 landing-slide__copy">
+                <div className="landing-slide__content">
+                  <p className="landing-eyebrow landing-eyebrow--rule">Vì Sao Chọn SoU</p>
+                  <h2 className="landing-slide__title" id="why-title"><span className="landing-slide__title-line">Ba Giá Trị Cốt Lõi</span><span className="landing-slide__title-line landing-slide__title-line--accent">Kiến Tạo Lòng Tin Dài Hạn</span></h2>
+                  <p className="landing-slide__desc">Chúng tôi đặt bảo mật, hiệu năng và tiến độ lên trước — để mỗi dự án chạy ổn định, mở rộng được và bàn giao đúng cam kết.</p>
+                  <div className="landing-slide__actions">
+                    <button className="landing-btn landing-btn--primary" type="button" data-slide="2">Xem Năng Lực<i className="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+                    <button className="landing-btn landing-btn--ghost" type="button" data-slide="4">Tư Vấn Ngay<i className="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+                  </div>
+                  <ul className="landing-features" role="list">
+                    <li className="landing-feature"><span className="landing-feature__icon" aria-hidden="true"><i className="fa-solid fa-shield-halved"></i></span><span className="landing-feature__text"><strong>Bảo mật</strong><small>Chuẩn Enterprise</small></span></li>
+                    <li className="landing-feature"><span className="landing-feature__icon" aria-hidden="true"><i className="fa-solid fa-gauge-high"></i></span><span className="landing-feature__text"><strong>Hiệu năng</strong><small>API &lt; 100ms · Scale sẵn</small></span></li>
+                    <li className="landing-feature"><span className="landing-feature__icon" aria-hidden="true"><i className="fa-solid fa-calendar-check"></i></span><span className="landing-feature__text"><strong>Tiến độ</strong><small>Demo mỗi 2 tuần</small></span></li>
+                    <li className="landing-feature"><span className="landing-feature__icon" aria-hidden="true"><i className="fa-solid fa-file-contract"></i></span><span className="landing-feature__text"><strong>Minh bạch</strong><small>Nghiệm thu theo giai đoạn</small></span></li>
+                  </ul>
+                </div>
+              </div>
+              <div className="col-lg-6 landing-slide__model" aria-hidden="true">
+                <div className="landing-slide__model-slot"></div>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-
-      {/* Center Hero: Typographic Core Message */}
-      <div className="relative z-10 my-auto py-10 sm:py-16">
-        <div className="flex flex-col space-y-0.5 sm:space-y-1 text-left font-black tracking-tight leading-[0.95]">
-          <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl text-[#F8FAFC]">
-            PEOPLE
-          </h1>
-          <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl text-[#F8FAFC]">
-            TECHNOLOGY
-          </h1>
-          <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl text-[#F8FAFC]">
-            SOLUTIONS
-          </h1>
-          <div className="pt-2 sm:pt-4">
-            <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl text-[#F8FAFC]">
-              A BRIGHTER
-            </h1>
-            <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl text-[#F8FAFC]">
-              TOMORROW
-            </h1>
+        </section>
+        <section className="landing-slide" id="capabilities" data-slide="2" aria-labelledby="caps-title">
+          <div className="container-fluid landing-slide__grid">
+            <div className="row align-items-center g-4 g-xl-5 h-100">
+              <div className="col-lg-6 landing-slide__copy">
+                <div className="landing-slide__content">
+                  <p className="landing-eyebrow landing-eyebrow--rule">Năng Lực Trọng Tâm</p>
+                  <h2 className="landing-slide__title" id="caps-title"><span className="landing-slide__title-line">Dự Án Có Thể</span><span className="landing-slide__title-line landing-slide__title-line--accent">Triển Khai Ngay Hôm Nay</span></h2>
+                  <p className="landing-slide__desc">Từ blockchain core đến SaaS và phần mềm theo yêu cầu — đội ngũ SoU sẵn sàng đồng hành từ ý tưởng đến sản phẩm vận hành.</p>
+                  <div className="landing-slide__actions">
+                    <button className="landing-btn landing-btn--primary" type="button" data-slide="3">Xem Quy Trình<i className="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+                    <button className="landing-btn landing-btn--ghost" type="button" data-slide="4">Nhận Báo Giá<i className="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+                  </div>
+                  <ul className="landing-features" role="list">
+                    <li className="landing-feature"><span className="landing-feature__icon" aria-hidden="true"><i className="fa-solid fa-coins"></i></span><span className="landing-feature__text"><strong>Token</strong><small>ERC-20 · Vesting · Staking</small></span></li>
+                    <li className="landing-feature"><span className="landing-feature__icon" aria-hidden="true"><i className="fa-solid fa-link"></i></span><span className="landing-feature__text"><strong>Web3</strong><small>dApp · Payment gateway</small></span></li>
+                    <li className="landing-feature"><span className="landing-feature__icon" aria-hidden="true"><i className="fa-solid fa-cloud"></i></span><span className="landing-feature__text"><strong>SaaS</strong><small>Multi-tenant · Billing</small></span></li>
+                    <li className="landing-feature"><span className="landing-feature__icon" aria-hidden="true"><i className="fa-solid fa-code"></i></span><span className="landing-feature__text"><strong>Custom</strong><small>CRM/ERP · Web &amp; Mobile</small></span></li>
+                  </ul>
+                </div>
+              </div>
+              <div className="col-lg-6 landing-slide__model" aria-hidden="true">
+                <div className="landing-slide__model-slot"></div>
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
+        <section className="landing-slide" id="process" data-slide="3" aria-labelledby="process-title">
+          <div className="container-fluid landing-slide__grid">
+            <div className="row align-items-center g-4 g-xl-5 h-100">
+              <div className="col-lg-6 landing-slide__copy">
+                <div className="landing-slide__content">
+                  <p className="landing-eyebrow landing-eyebrow--rule">Cách Chúng Tôi Làm Việc</p>
+                  <h2 className="landing-slide__title" id="process-title"><span className="landing-slide__title-line">Quy Trình 4 Bước</span><span className="landing-slide__title-line landing-slide__title-line--accent">Rõ Ràng &amp; Minh Bạch</span></h2>
+                  <p className="landing-slide__desc">Mỗi giai đoạn có đầu ra cụ thể — bạn theo dõi tiến độ thật, nghiệm thu từng phần và nhận bàn giao đầy đủ khi lên production.</p>
+                  <div className="landing-slide__actions">
+                    <button className="landing-btn landing-btn--primary" type="button" data-slide="4">Bắt Đầu Ngay<i className="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+                    <button className="landing-btn landing-btn--ghost" type="button" data-slide="0">Về Trang Chủ<i className="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+                  </div>
+                  <ul className="landing-features" role="list">
+                    <li className="landing-feature"><span className="landing-feature__icon" aria-hidden="true"><i className="fa-solid fa-magnifying-glass-chart"></i></span><span className="landing-feature__text"><strong>Khảo sát</strong><small>Tư vấn &amp; báo giá 24H</small></span></li>
+                    <li className="landing-feature"><span className="landing-feature__icon" aria-hidden="true"><i className="fa-solid fa-laptop-code"></i></span><span className="landing-feature__text"><strong>Lập trình</strong><small>Demo chạy thử 2 tuần/lần</small></span></li>
+                    <li className="landing-feature"><span className="landing-feature__icon" aria-hidden="true"><i className="fa-solid fa-vial"></i></span><span className="landing-feature__text"><strong>Kiểm thử</strong><small>Load · Security · Staging</small></span></li>
+                    <li className="landing-feature"><span className="landing-feature__icon" aria-hidden="true"><i className="fa-solid fa-gift"></i></span><span className="landing-feature__text"><strong>Bàn giao</strong><small>Source 100% · Bảo hành</small></span></li>
+                  </ul>
+                </div>
+              </div>
+              <div className="col-lg-6 landing-slide__model" aria-hidden="true">
+                <div className="landing-slide__model-slot"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section className="landing-slide" id="contact" data-slide="4" aria-labelledby="contact-title">
+          <div className="container-fluid landing-slide__grid">
+            <div className="row align-items-center g-4 g-xl-5 h-100">
+              <div className="col-lg-6 landing-slide__copy mt-lg-0">
+                <div className="landing-slide__content landing-slide__content--form">
+                  <div className="landing-contact-copy">
+                    <p className="landing-eyebrow landing-eyebrow--rule">Bắt Đầu Dự Án</p>
+                    <h2 className="landing-slide__title" id="contact-title"><span className="landing-slide__title-line">Nhận Báo Giá</span><span className="landing-slide__title-line landing-slide__title-line--accent">Trong Vòng 24 Giờ</span></h2>
+                    <p className="landing-slide__desc">Chọn nhu cầu, ngân sách và để lại thông tin — đội ngũ SoU phản hồi giải pháp phù hợp trong ngày làm việc tiếp theo.</p>
+                    <ul className="landing-features landing-features--compact" role="list">
+                      <li className="landing-feature"><span className="landing-feature__icon" aria-hidden="true"><i className="fa-solid fa-bolt"></i></span><span className="landing-feature__text"><strong>Phản hồi nhanh</strong><small>Trong 24 giờ làm việc</small></span></li>
+                      <li className="landing-feature"><span className="landing-feature__icon" aria-hidden="true"><i className="fa-solid fa-comments"></i></span><span className="landing-feature__text"><strong>Tư vấn miễn phí</strong><small>Không ràng buộc hợp đồng</small></span></li>
+                    </ul>
+                  </div>
+                  <form className="landing-form" id="landing-quote-form" noValidate>
+                    <div className="landing-form__row">
+                      <div className="landing-field">
+                        <label htmlFor="quote-need">Nhu cầu</label>
+                        <select id="quote-need" name="need" required={true} defaultValue="">
+                          <option value="" disabled>
+                            Chọn nhu cầu
+                          </option>
+                          <option value="token">Token</option>
+                          <option value="web3">Web3</option>
+                          <option value="saas">SaaS</option>
+                          <option value="custom">Custom</option>
+                          <option value="dedicated">Thuê Dev</option>
+                        </select>
+                      </div>
+                      <div className="landing-field">
+                        <label htmlFor="quote-budget">Ngân sách</label>
+                        <select id="quote-budget" name="budget" required={true} defaultValue="lt5k">
+                          <option value="lt5k">&lt; $5k</option>
+                          <option value="5to15">$5k–$15k</option>
+                          <option value="gt15">&gt; $15k</option>
+                          <option value="flex">Linh hoạt</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="landing-form__fields">
+                      <div className="landing-field">
+                        <label htmlFor="quote-name">Họ tên</label>
+                        <input id="quote-name" type="text" name="name" required={true} autoComplete="name" placeholder="Nguyễn Văn A" />
+                      </div>
+                      <div className="landing-field">
+                        <label htmlFor="quote-contact">Email / SĐT / Telegram</label>
+                        <input id="quote-contact" type="text" name="contact" required={true} autoComplete="email" placeholder="you@email.com" />
+                      </div>
+                      <div className="landing-field landing-field--full">
+                        <label htmlFor="quote-idea">Ý tưởng</label>
+                        <textarea id="quote-idea" name="idea" rows={2} required={true} placeholder="Mô tả ngắn sản phẩm hoặc bài toán…"></textarea>
+                      </div>
+                    </div>
+                    <p className="landing-form__status" id="landing-form-status" role="status" aria-live="polite" hidden={true}></p>
+                    <button className="landing-btn landing-btn--primary landing-form__submit" type="submit">Gửi Yêu Cầu — Báo Giá 24H</button>
+                  </form>
+                </div>
+              </div>
+              <div className="col-lg-6 landing-slide__model" aria-hidden="true">
+                <div className="landing-slide__model-slot"></div>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
-
-      {/* Bottom Footer: Clean Domain Link */}
-      <footer className="relative z-10 flex items-center justify-between pt-6">
-        <a
-          href="https://soutechnology.vn"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs sm:text-sm font-medium tracking-wide text-[#94A3B8] hover:text-[#DAAF37] transition-colors"
-        >
-          soutechnology.vn
-        </a>
-
-        <div className="text-[11px] sm:text-xs font-mono text-[#64748B]">
-          SoU Technology Solution
-        </div>
-      </footer>
     </main>
+    
+    
+    
+    
+    
+  
+    </>
   );
 }
