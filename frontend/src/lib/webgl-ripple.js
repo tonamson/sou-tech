@@ -493,13 +493,22 @@ export function initWebglRipple() {
     const logoPlane = mesh(new THREE.PlaneGeometry(1.95, 0.82), logoMat, false);
     logoPlane.position.set(0, ROOM_H * 0.78, wallZ + 0.045);
     g.add(logoPlane);
-    new THREE.TextureLoader().load(
+    new THREE.ImageLoader().load(
       "/client/images/logo.svg",
-      (tex) => {
-        tex.colorSpace = THREE.SRGBColorSpace;
-        tex.anisotropy = 4;
+      (image) => {
+        // Rasterize SVG at an explicit size before uploading it to WebGL.
+        // Match the plane aspect ratio and center the artwork without stretching.
+        const tex = canvasTex(1170, 492, (ctx, w, h) => {
+          const scale = Math.min(w / image.naturalWidth, h / image.naturalHeight);
+          const width = image.naturalWidth * scale;
+          const height = image.naturalHeight * scale;
+          ctx.clearRect(0, 0, w, h);
+          ctx.drawImage(image, (w - width) / 2, (h - height) / 2, width, height);
+        });
+        const previousMap = logoMat.map;
         logoMat.map = tex;
         logoMat.needsUpdate = true;
+        previousMap.dispose();
       },
       undefined,
       () => {},

@@ -9,6 +9,7 @@ type LoadingProps = {
 
 export default function Loading({ ready = false }: LoadingProps) {
   const [elapsed, setElapsed] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
   const overlay = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -28,10 +29,14 @@ export default function Loading({ ready = false }: LoadingProps) {
       seen ? "200ms" : "1100ms",
     );
     const timer = window.setTimeout(() => setElapsed(true), 4000);
-    return () => window.clearTimeout(timer);
+    const deadline = window.setTimeout(() => setTimedOut(true), 4500);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearTimeout(deadline);
+    };
   }, []);
 
-  const dismissed = ready && elapsed;
+  const dismissed = (ready && elapsed) || timedOut;
   useEffect(() => {
     if (!dismissed) return;
     try {

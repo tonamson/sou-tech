@@ -73,6 +73,9 @@ test("WebGL failure leaves navigation initialized and releases loading", async (
   app.run(0);
   assert.equal(app.state.navigations, 1);
   await new Promise(setImmediate);
+  assert.deepEqual(app.state, { navigations: 1, scenes: 0, ready: true });
+  app.run(5000);
+  await new Promise(setImmediate);
   assert.deepEqual(app.state, { navigations: 1, scenes: 1, ready: true });
   app.cleanup();
 });
@@ -93,6 +96,52 @@ test("cancelled Strict Mode pass starts neither navigation nor WebGL", async () 
   app.cleanup();
   app.run(0);
   app.run(1500);
+  app.run(5000);
   await new Promise(setImmediate);
   assert.deepEqual(app.state, { navigations: 0, scenes: 0, ready: false });
+});
+
+test("loading dismisses at its deadline even without the ready signal", () => {
+  const loadingSource = readFileSync(path.join(__dirname, "../src/components/Loading.tsx"), "utf8");
+  const code = ts.transpileModule(loadingSource, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText;
+  const state = [];
+  const effects = [];
+  const timers = new Map();
+  let cursor = 0;
+  const jsx = (type, props) => ({ type, props });
+  const modules = {
+    react: {
+      useState(initial) {
+        const index = cursor++;
+        if (!(index in state)) state[index] = initial;
+        return [state[index], value => { state[index] = value; }];
+      },
+      useRef: () => ({ current: null }),
+      useEffect: callback => effects.push(callback),
+    },
+    "react/jsx-runtime": { jsx, jsxs: jsx },
+    "./Loading.module.css": { default: { loader: "loader", ready: "ready" } },
+  };
+  const exports = {};
+  vm.runInNewContext(code, {
+    exports,
+    require: id => modules[id],
+    sessionStorage: { getItem() { throw new Error("Storage disabled"); } },
+    window: {
+      setTimeout(callback, delay) { timers.set(delay, callback); return delay; },
+      clearTimeout: id => timers.delete(id),
+    },
+  });
+  const render = () => { cursor = 0; return exports.default({ ready: false }); };
+  assert.equal(render().props["aria-hidden"], false);
+  const cleanup = effects[0]();
+  timers.get(4000)();
+  assert.equal(render().props["aria-hidden"], false);
+  timers.get(4500)();
+  assert.equal(render().props["aria-hidden"], true);
+  assert.match(render().props.className, /ready/);
+  cleanup();
+  assert.equal(timers.size, 0);
 });

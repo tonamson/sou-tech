@@ -27,6 +27,11 @@ export default function LandingEffects() {
         requestAnimationFrame(() => requestAnimationFrame(finish));
       });
 
+    }, 0);
+
+    // Let the four-second intro and its exit transition finish before the
+    // synchronous scene construction / first shader compilation can block UI.
+    const sceneTimer = window.setTimeout(() => {
       void (async () => {
         try {
           const { initWebglRipple } = await import("@/src/lib/webgl-ripple");
@@ -36,12 +41,13 @@ export default function LandingEffects() {
           console.error("3D scene unavailable; navigation remains active", error);
         }
       })();
-    }, 0);
+    }, 5000);
 
     return () => {
       ac.abort();
       window.clearTimeout(timer);
       window.clearTimeout(fallback);
+      window.clearTimeout(sceneTimer);
     };
   }, []);
 
