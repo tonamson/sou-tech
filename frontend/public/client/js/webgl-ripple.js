@@ -9,7 +9,9 @@ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.j
 
 document.addEventListener("DOMContentLoaded", () => {
   const canvas = document.getElementById("webgl-bg-canvas");
-  if (!canvas) return;
+  if (!canvas || canvas.dataset.souInited === "1") return;
+  canvas.dataset.souInited = "1";
+  window.__souWebglInited = true;
 
   const slides = document.querySelectorAll(".landing-slide");
   if (!slides.length) return;
@@ -48,7 +50,8 @@ document.addEventListener("DOMContentLoaded", () => {
   renderer.setClearColor(LANDING_BG, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.08;
+  // Tuned vs Playwright canvas luminance vs Sou@3025 (target ≈ original).
+  renderer.toneMappingExposure = 0.98;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -56,9 +59,9 @@ document.addEventListener("DOMContentLoaded", () => {
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
   // Soft studio: warm key + cool fill, low contrast
-  scene.add(new THREE.AmbientLight(0xf6f4f0, 0.32));
-  scene.add(new THREE.HemisphereLight(0xfff6ec, 0xb8c4d4, 0.78));
-  const key = new THREE.DirectionalLight(0xfff1e4, 0.95);
+  scene.add(new THREE.AmbientLight(0xf6f4f0, 0.3));
+  scene.add(new THREE.HemisphereLight(0xfff6ec, 0xb8c4d4, 0.72));
+  const key = new THREE.DirectionalLight(0xfff1e4, 0.88);
   key.position.set(4.5, 11, 5.5);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
@@ -72,10 +75,10 @@ document.addEventListener("DOMContentLoaded", () => {
   key.shadow.normalBias = 0.028;
   key.shadow.radius = 6;
   scene.add(key);
-  const fill = new THREE.DirectionalLight(0xd4dff0, 0.42);
+  const fill = new THREE.DirectionalLight(0xd4dff0, 0.38);
   fill.position.set(-5.5, 5, 3.5);
   scene.add(fill);
-  const rim = new THREE.DirectionalLight(0xeef2fa, 0.28);
+  const rim = new THREE.DirectionalLight(0xeef2fa, 0.24);
   rim.position.set(-2, 6, -6);
   scene.add(rim);
 
@@ -490,7 +493,7 @@ document.addEventListener("DOMContentLoaded", () => {
     logoPlane.position.set(0, ROOM_H * 0.78, wallZ + 0.045);
     g.add(logoPlane);
     new THREE.TextureLoader().load(
-      "client/images/logo.svg",
+      "/client/images/logo.svg",
       (tex) => {
         tex.colorSpace = THREE.SRGBColorSpace;
         tex.anisotropy = 4;
@@ -676,10 +679,10 @@ document.addEventListener("DOMContentLoaded", () => {
       ctx.fillText(num, 36, 90);
       ctx.fillStyle = "#ffffff";
       ctx.font = "700 40px Manrope, system-ui, sans-serif";
-      ctx.fillText(title, 36, 180);
+      title.split("\n").forEach((line, i) => ctx.fillText(line, 28, 160 + i * 48, w - 56));
       ctx.fillStyle = "rgba(255,255,255,0.7)";
       ctx.font = "600 26px Manrope, system-ui, sans-serif";
-      ctx.fillText(sub, 36, 240);
+      sub.split("\n").forEach((line, i) => ctx.fillText(line, 28, 280 + i * 34, w - 56));
     });
   }
 
@@ -1098,42 +1101,49 @@ document.addEventListener("DOMContentLoaded", () => {
     screen.name = "meetScreen";
     g.add(screen);
 
-    // 3 value cards — hidden until pointer hits screen
+    // Four values matching the About section.
     const cards = new THREE.Group();
     cards.name = "meetCards";
     cards.visible = false;
     const cardData = [
       {
         num: "01",
-        title: "Bảo Mật",
-        sub: "Chuẩn Enterprise",
+        title: "Hiểu\nnghiệp vụ",
+        sub: "Từ nhu cầu\nthực tế",
         accent: "#2aa8e0",
         mat: matCyan,
       },
       {
         num: "02",
-        title: "Hiệu Năng",
-        sub: "Mở rộng linh hoạt",
+        title: "Chú trọng\nchất lượng",
+        sub: "Kiểm thử trước\nkhi bàn giao",
         accent: "#e7ce93",
         mat: matGold,
       },
       {
         num: "03",
-        title: "Tiến Độ",
-        sub: "Minh bạch 2 tuần",
+        title: "Hợp tác\nminh bạch",
+        sub: "Phạm vi, tiến độ\nvà chi phí",
         accent: "#a68040",
         mat: matAccent,
+      },
+      {
+        num: "04",
+        title: "Đồng hành\nlâu dài",
+        sub: "Vận hành và\nphát triển",
+        accent: "#e7ce93",
+        mat: matGold,
       },
     ];
     cardData.forEach((c, i) => {
       const card = new THREE.Group();
       const body = mesh(
-        new RoundedBoxGeometry(0.58, 0.78, 0.05, 2, 0.02),
+        new RoundedBoxGeometry(0.5, 0.78, 0.05, 2, 0.02),
         matInk,
       );
       card.add(body);
       const face = mesh(
-        new THREE.PlaneGeometry(0.52, 0.72),
+        new THREE.PlaneGeometry(0.46, 0.72),
         new THREE.MeshStandardMaterial({
           map: valueCardTex(c.num, c.title, c.sub, c.accent),
           emissive: 0x0a1520,
@@ -1144,7 +1154,8 @@ document.addEventListener("DOMContentLoaded", () => {
       );
       face.position.z = 0.03;
       card.add(face);
-      card.position.set(-0.7 + i * 0.7, 1.32, wallZ + 0.1);
+      // This floor is mirrored; reverse authored X to read 01–04 left to right.
+      card.position.set(((cardData.length - 1) / 2 - i) * 0.55, 1.32, wallZ + 0.1);
       card.userData.cardBaseY = 1.32;
       card.userData.cardPhase = i * 0.9;
       cards.add(card);
@@ -1379,7 +1390,10 @@ document.addEventListener("DOMContentLoaded", () => {
       ctx.font = "800 42px Manrope, system-ui, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(label, s / 2, s / 2);
+      const lines = label.split("\n");
+      lines.forEach((line, i) => {
+        ctx.fillText(line, s / 2, s / 2 + (i - (lines.length - 1) / 2) * 48, s - 56);
+      });
     });
   }
 
@@ -1406,11 +1420,11 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
 
-    // Capability icons on shelves: Token · Web3 · SaaS
+    // Capabilities in the same order as the content panel.
     const caps = [
-      { label: "TOKEN", accent: "#e7ce93", mat: matGold, x: -0.7, y: 1.78 },
-      { label: "WEB3", accent: "#2aa8e0", mat: matCyan, x: 0.05, y: 1.78 },
-      { label: "SAAS", accent: "#a68040", mat: matAccent, x: 0.8, y: 1.78 },
+      { label: "PHẦN MỀM\nTHEO YÊU CẦU", accent: "#e7ce93", mat: matGold, x: -0.7, y: 1.78 },
+      { label: "SAAS", accent: "#2aa8e0", mat: matCyan, x: 0.05, y: 1.78 },
+      { label: "BLOCKCHAIN\n& WEB3", accent: "#a68040", mat: matAccent, x: 0.8, y: 1.78 },
     ];
     caps.forEach((c, i) => {
       const block = mesh(
@@ -1588,14 +1602,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     const matFilament = makeMatte(0xe85a2a, 0.35);
+    // No transmission — MeshPhysical transmission pass trips ANGLE/Metal
+    // feedback-loop warnings under Next.js (same look via opacity).
     const matGlass = new THREE.MeshPhysicalMaterial({
       color: 0xc8d8ea,
       metalness: 0.05,
       roughness: 0.12,
       transparent: true,
-      opacity: 0.28,
-      transmission: 0.55,
-      thickness: 0.04,
+      opacity: 0.22,
     });
     const printer = new THREE.Group();
     printer.position.set(px, 0.48, pz);
@@ -1758,7 +1772,7 @@ document.addEventListener("DOMContentLoaded", () => {
       ctx.fillText("Quy Trình 4 Bước", w / 2, 175);
       ctx.fillStyle = "rgba(243,244,247,0.55)";
       ctx.font = "600 22px Manrope, system-ui, sans-serif";
-      ctx.fillText("Khảo sát → Lập trình → Kiểm thử → Bàn giao", w / 2, 270);
+      ctx.fillText("Khảo sát → Phát triển → Kiểm thử → Bàn giao", w / 2, 270);
     });
   }
 
@@ -1790,7 +1804,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const matGlowCyan = makeGlow(0x2aa8e0, 0x2aa8e0, 1.2);
     const steps = [
       { num: "01", title: "KHẢO SÁT", accent: "#2aa8e0", glow: matGlowCyan },
-      { num: "02", title: "LẬP TRÌNH", accent: "#e7ce93", glow: matGlowGold },
+      { num: "02", title: "PHÁT TRIỂN", accent: "#e7ce93", glow: matGlowGold },
       { num: "03", title: "KIỂM THỬ", accent: "#2aa8e0", glow: matGlowCyan },
       { num: "04", title: "BÀN GIAO", accent: "#a68040", glow: matGlowGold },
     ];
@@ -2569,10 +2583,10 @@ document.addEventListener("DOMContentLoaded", () => {
       ctx.fillText("BẮT ĐẦU DỰ ÁN", w / 2, 100);
       ctx.fillStyle = "#e7ce93";
       ctx.font = "800 56px Manrope, system-ui, sans-serif";
-      ctx.fillText("Báo Giá Trong 24H", w / 2, 180);
+      ctx.fillText("Kết nối cùng SoU", w / 2, 180);
       ctx.fillStyle = "rgba(243,244,247,0.65)";
       ctx.font = "600 24px Manrope, system-ui, sans-serif";
-      ctx.fillText("Gửi yêu cầu → Nhận đề xuất → Kickoff", w / 2, 270);
+      ctx.fillText("contact@soutechnology.vn", w / 2, 270);
     });
   }
 
@@ -2582,15 +2596,15 @@ document.addEventListener("DOMContentLoaded", () => {
       ctx.fillRect(0, 0, w, h);
       ctx.fillStyle = "#2aa8e0";
       ctx.font = "700 22px JetBrains Mono, Menlo, monospace";
-      ctx.fillText("> quote.request()", 28, 70);
+      ctx.fillText("LIÊN HỆ SOU", 28, 70);
       ctx.fillStyle = "#e7ce93";
-      ctx.fillText("need: web3 | saas", 28, 120);
-      ctx.fillText("budget: flexible", 28, 160);
+      ctx.fillText("Phần mềm · SaaS · Web3", 28, 120);
+      ctx.fillText("contact@soutechnology.vn", 28, 160, w - 56);
       ctx.fillStyle = "rgba(243,244,247,0.75)";
-      ctx.fillText("status: ready to send", 28, 210);
+      ctx.fillText("Trao đổi giải pháp phù hợp", 28, 210, w - 56);
       ctx.fillStyle = "#a68040";
       ctx.font = "800 28px Manrope, system-ui, sans-serif";
-      ctx.fillText("SEND  →", w - 140, h - 50);
+      ctx.fillText("EMAIL →", w - 140, h - 50);
     });
   }
 
@@ -2821,7 +2835,7 @@ document.addEventListener("DOMContentLoaded", () => {
           ctx.font = "800 40px Manrope, system-ui, sans-serif";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText("24H", w / 2, h / 2);
+          ctx.fillText("EMAIL", w / 2, h / 2, w - 20);
         }),
         transparent: true,
         depthWrite: false,
@@ -3010,7 +3024,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Higher isometric camera (Journey diorama angle)
   const CAM_OFF = { x: 5.4, y: 4.0, z: 5.6 };
   function floorLookY(i) {
-    return i * FLOOR_GAP + ROOM_H * 0.28;
+    return (i * FLOOR_GAP + ROOM_H * 0.28) * building.scale.y;
   }
   function getViewMode() {
     const w = window.innerWidth;
@@ -3031,13 +3045,14 @@ document.addEventListener("DOMContentLoaded", () => {
       x: side * CAM_OFF.x * dist,
       y: CAM_OFF.y * lift + lookY,
       z: CAM_OFF.z * dist,
-      lookX: side * FLOOR_SHIFT,
+      lookX: side * FLOOR_SHIFT * building.scale.x,
       lookY: lookY + (mode === "mobile" ? 0.15 : 0),
       lookZ: 0.05,
     };
   }
 
-  const startCam = camTarget(0);
+  const initialIndex = Math.max(0, Array.from(slides).findIndex((slide) => slide.classList.contains("is-active")));
+  const startCam = camTarget(initialIndex);
   const rig = { ...startCam };
 
   // Left-drag orbit — delta yaw/pitch; absolute yaw clamped to open corner between walls
@@ -3054,7 +3069,7 @@ document.addEventListener("DOMContentLoaded", () => {
     orbit.dPitch = 0;
   }
 
-  let activeIndex = 0;
+  let activeIndex = initialIndex;
   let transitionTl = null;
   let transitioning = false;
   const mouse = { x: 0, y: 0, tx: 0, ty: 0 };
@@ -3079,7 +3094,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
-  dimFloors(0);
+  dimFloors(initialIndex);
 
   function syncCanvasToModelCol() {
     const active = document.querySelector(
@@ -3119,7 +3134,7 @@ document.addEventListener("DOMContentLoaded", () => {
     camera.fov = mode === "mobile" ? 42 : mode === "tablet" ? 38 : 36;
     camera.updateProjectionMatrix();
 
-    const scale = mode === "mobile" ? 0.88 : mode === "tablet" ? 1.02 : 0.95;
+    const scale = mode === "mobile" ? 0.88 : mode === "tablet" ? 1.02 : 0.87;
     building.scale.setScalar(scale);
 
     // Re-frame active floor after breakpoint change
@@ -3322,11 +3337,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (meetScreen && meetCards) {
           const screenHits = meetRaycaster.intersectObject(meetScreen, false);
-          const hot = screenHits.length > 0;
+          // Keep the About values visible while reading the matching content.
+          const hot = true;
           if (hot !== meetBoardHot) {
             meetBoardHot = hot;
             meetCards.visible = hot;
-            canvas.style.cursor = hot
+            canvas.style.cursor = screenHits.length > 0
               ? "pointer"
               : orbit.dragging
                 ? "grabbing"
@@ -3489,7 +3505,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    // Floor 05: sealed envelope desk → mailbox → 24H pulse
+    // Floor 05: sealed envelope desk → company email mailbox
     if (activeIndex === 4 && !reduceMotion) {
       const contactProps = floors[4]?.getObjectByName("props");
       const c = contactProps?.userData?.contact;

@@ -1773,7 +1773,7 @@ export function initWebglRipple() {
       ctx.fillText("Quy Trình 4 Bước", w / 2, 175);
       ctx.fillStyle = "rgba(243,244,247,0.55)";
       ctx.font = "600 22px Manrope, system-ui, sans-serif";
-      ctx.fillText("Khảo sát → Lập trình → Kiểm thử → Bàn giao", w / 2, 270);
+      ctx.fillText("Khảo sát → Phát triển → Kiểm thử → Bàn giao", w / 2, 270);
     });
   }
 
@@ -1805,7 +1805,7 @@ export function initWebglRipple() {
     const matGlowCyan = makeGlow(0x2aa8e0, 0x2aa8e0, 1.2);
     const steps = [
       { num: "01", title: "KHẢO SÁT", accent: "#2aa8e0", glow: matGlowCyan },
-      { num: "02", title: "LẬP TRÌNH", accent: "#e7ce93", glow: matGlowGold },
+      { num: "02", title: "PHÁT TRIỂN", accent: "#e7ce93", glow: matGlowGold },
       { num: "03", title: "KIỂM THỬ", accent: "#2aa8e0", glow: matGlowCyan },
       { num: "04", title: "BÀN GIAO", accent: "#a68040", glow: matGlowGold },
     ];
@@ -2584,10 +2584,10 @@ export function initWebglRipple() {
       ctx.fillText("BẮT ĐẦU DỰ ÁN", w / 2, 100);
       ctx.fillStyle = "#e7ce93";
       ctx.font = "800 56px Manrope, system-ui, sans-serif";
-      ctx.fillText("Báo Giá Trong 24H", w / 2, 180);
+      ctx.fillText("Kết nối cùng SoU", w / 2, 180);
       ctx.fillStyle = "rgba(243,244,247,0.65)";
       ctx.font = "600 24px Manrope, system-ui, sans-serif";
-      ctx.fillText("Gửi yêu cầu → Nhận đề xuất → Kickoff", w / 2, 270);
+      ctx.fillText("contact@soutechnology.vn", w / 2, 270);
     });
   }
 
@@ -2597,15 +2597,15 @@ export function initWebglRipple() {
       ctx.fillRect(0, 0, w, h);
       ctx.fillStyle = "#2aa8e0";
       ctx.font = "700 22px JetBrains Mono, Menlo, monospace";
-      ctx.fillText("> quote.request()", 28, 70);
+      ctx.fillText("LIÊN HỆ SOU", 28, 70);
       ctx.fillStyle = "#e7ce93";
-      ctx.fillText("need: web3 | saas", 28, 120);
-      ctx.fillText("budget: flexible", 28, 160);
+      ctx.fillText("Phần mềm · SaaS · Web3", 28, 120);
+      ctx.fillText("contact@soutechnology.vn", 28, 160, w - 56);
       ctx.fillStyle = "rgba(243,244,247,0.75)";
-      ctx.fillText("status: ready to send", 28, 210);
+      ctx.fillText("Trao đổi giải pháp phù hợp", 28, 210, w - 56);
       ctx.fillStyle = "#a68040";
       ctx.font = "800 28px Manrope, system-ui, sans-serif";
-      ctx.fillText("SEND  →", w - 140, h - 50);
+      ctx.fillText("EMAIL →", w - 140, h - 50);
     });
   }
 
@@ -2836,7 +2836,7 @@ export function initWebglRipple() {
           ctx.font = "800 40px Manrope, system-ui, sans-serif";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText("24H", w / 2, h / 2);
+          ctx.fillText("EMAIL", w / 2, h / 2, w - 20);
         }),
         transparent: true,
         depthWrite: false,
@@ -3025,7 +3025,7 @@ export function initWebglRipple() {
   // Higher isometric camera (Journey diorama angle)
   const CAM_OFF = { x: 5.4, y: 4.0, z: 5.6 };
   function floorLookY(i) {
-    return i * FLOOR_GAP + ROOM_H * 0.28;
+    return (i * FLOOR_GAP + ROOM_H * 0.28) * building.scale.y;
   }
   function getViewMode() {
     const w = window.innerWidth;
@@ -3046,13 +3046,14 @@ export function initWebglRipple() {
       x: side * CAM_OFF.x * dist,
       y: CAM_OFF.y * lift + lookY,
       z: CAM_OFF.z * dist,
-      lookX: side * FLOOR_SHIFT,
+      lookX: side * FLOOR_SHIFT * building.scale.x,
       lookY: lookY + (mode === "mobile" ? 0.15 : 0),
       lookZ: 0.05,
     };
   }
 
-  const startCam = camTarget(0);
+  const initialIndex = Math.max(0, Array.from(slides).findIndex((slide) => slide.classList.contains("is-active")));
+  const startCam = camTarget(initialIndex);
   const rig = { ...startCam };
 
   // Left-drag orbit — delta yaw/pitch; absolute yaw clamped to open corner between walls
@@ -3069,7 +3070,7 @@ export function initWebglRipple() {
     orbit.dPitch = 0;
   }
 
-  let activeIndex = 0;
+  let activeIndex = initialIndex;
   let transitionTl = null;
   let transitioning = false;
   const mouse = { x: 0, y: 0, tx: 0, ty: 0 };
@@ -3094,7 +3095,7 @@ export function initWebglRipple() {
       }
     });
   }
-  dimFloors(0);
+  dimFloors(initialIndex);
 
   function syncCanvasToModelCol() {
     const active = document.querySelector(
@@ -3134,7 +3135,7 @@ export function initWebglRipple() {
     camera.fov = mode === "mobile" ? 42 : mode === "tablet" ? 38 : 36;
     camera.updateProjectionMatrix();
 
-    const scale = mode === "mobile" ? 0.88 : mode === "tablet" ? 1.02 : 0.95;
+    const scale = mode === "mobile" ? 0.88 : mode === "tablet" ? 1.02 : 0.87;
     building.scale.setScalar(scale);
 
     // Re-frame active floor after breakpoint change
@@ -3505,7 +3506,7 @@ export function initWebglRipple() {
       }
     }
 
-    // Floor 05: sealed envelope desk → mailbox → 24H pulse
+    // Floor 05: sealed envelope desk → company email mailbox
     if (activeIndex === 4 && !reduceMotion) {
       const contactProps = floors[4]?.getObjectByName("props");
       const c = contactProps?.userData?.contact;

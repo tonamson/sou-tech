@@ -506,15 +506,15 @@ body.landing--stage {
     }
   }
 
-  &__grid {
+  &__grid.container-fluid {
     position: relative;
     z-index: 2;
     width: 100%;
     height: 100%;
     padding-top: 5.5rem;
     padding-bottom: 2rem;
-    padding-left: clamp(1rem, 4vw, 3.5rem);
-    padding-right: clamp(1rem, 4vw, 3.5rem);
+    padding-left: clamp(2rem, 5vw, 7rem);
+    padding-right: clamp(2rem, 5vw, 7rem);
 
     @media (max-width: 1200px) {
       padding-top: 4.25rem;
@@ -707,6 +707,7 @@ body.landing--stage {
     &-line {
       display: block;
       margin-top: 0;
+      text-wrap: balance;
       // Give gradient text room for descenders without shifting the layout.
       padding-bottom: 0.15em;
       margin-bottom: -0.15em;

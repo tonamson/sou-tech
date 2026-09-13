@@ -9,9 +9,9 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "SOU - Đối tác phát triển phần mềm & hạ tầng số · SoU Technology Solutions",
+  title: "SoU Technology Solutions | Phần mềm, SaaS & Web3",
   description:
-    "SOU - Đối tác phát triển phần mềm & hạ tầng số — Web3, SaaS & hệ thống doanh nghiệp.",
+    "SoU phát triển phần mềm theo yêu cầu, nền tảng SaaS và giải pháp Blockchain & Web3. Liên hệ contact@soutechnology.vn để trao đổi dự án.",
   icons: {
     icon: "/client/images/favicon.svg",
     apple: "/client/images/favicon.svg",

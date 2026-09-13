@@ -2,13 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Loading from "./Loading";
+import { initLandingMain } from "@/src/lib/landing-main";
 
 /**
- * Boot GSAP carousel + Three.js floor model after React mounts.
- * Vanilla scripts used DOMContentLoaded — that already fired under Next.js App Router.
- *
- * setTimeout(0) + abort: skip React Strict Mode double-mount so WebGL is not
- * created twice on the same canvas (second context kills the first).
+ * Navigation is ready independently of the optional 3D scene.
+ * Defer startup so React Strict Mode can cancel its first effect pass.
  */
 export default function LandingEffects() {
   const [ready, setReady] = useState(false);
@@ -18,32 +16,24 @@ export default function LandingEffects() {
     const finish = () => {
       if (!ac.signal.aborted) setReady(true);
     };
-    const fallback = window.setTimeout(finish, 8000);
+    const fallback = window.setTimeout(finish, 1500);
 
     const timer = window.setTimeout(() => {
+      if (ac.signal.aborted) return;
+      initLandingMain();
+
+      // Fonts and one painted frame are enough to reveal the usable page.
+      void document.fonts.ready.then(() => {
+        requestAnimationFrame(() => requestAnimationFrame(finish));
+      });
+
       void (async () => {
         try {
-        if (ac.signal.aborted) return;
-
-        const [{ initWebglRipple }, { initLandingMain }] = await Promise.all([
-          import("@/src/lib/webgl-ripple"),
-          import("@/src/lib/landing-main"),
-        ]);
-        if (ac.signal.aborted) return;
-
-        // Wait 1 frame so Bootstrap grid has measured model column for canvas sync
-        await new Promise<void>((r) => requestAnimationFrame(() => r()));
-        if (ac.signal.aborted) return;
-
-        // WebGL first so window.transitionWebGlBg exists before carousel calls it
-        initWebglRipple();
-        initLandingMain();
-        await document.fonts.ready;
-        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+          const { initWebglRipple } = await import("@/src/lib/webgl-ripple");
+          if (ac.signal.aborted) return;
+          initWebglRipple();
         } catch (error) {
-          console.error("Landing initialization failed", error);
-        } finally {
-          finish();
+          console.error("3D scene unavailable; navigation remains active", error);
         }
       })();
     }, 0);

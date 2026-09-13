@@ -110,7 +110,7 @@ export default function Home() {
         <span
           className="landing-sheet-pill__title"
           id="landing-sheet-pill-title">
-          Giải Pháp Công Nghệ
+          Giải pháp công nghệ
         </span>
         <span className="landing-sheet-pill__chev" aria-hidden="true">
           <i className="fa-solid fa-chevron-up"></i>
@@ -134,14 +134,14 @@ export default function Home() {
                     <p className="landing-eyebrow landing-eyebrow--rule">
                       Your vision. Our expertise.
                     </p>
-                    <h2 className="landing-slide__title" id="hero-title">
+                    <h1 className="landing-slide__title" id="hero-title">
                       <span className="landing-slide__title-line">
-                        Giải Pháp Công Nghệ
+                        Giải pháp công nghệ
                       </span>
                       <span className="landing-slide__title-line landing-slide__title-line--accent">
-                        Cho Doanh Nghiệp Tương Lai
+                        Cho doanh nghiệp tương lai
                       </span>
-                    </h2>
+                    </h1>
                     <p className="landing-slide__desc">
                       Chúng tôi đồng hành cùng doanh nghiệp kiến tạo giải pháp
                       phần mềm hiện đại, tối ưu vận hành và mở ra cơ hội tăng
@@ -152,7 +152,7 @@ export default function Home() {
                         className="landing-btn landing-btn--primary"
                         type="button"
                         data-slide="2">
-                        Khám Phá Dự Án
+                        Khám phá năng lực
                         <i
                           className="fa-solid fa-arrow-right"
                           aria-hidden="true"></i>
@@ -161,7 +161,7 @@ export default function Home() {
                         className="landing-btn landing-btn--ghost"
                         type="button"
                         data-slide="4">
-                        Tư Vấn Ngay
+                        Trao đổi dự án
                         <i
                           className="fa-solid fa-arrow-right"
                           aria-hidden="true"></i>
@@ -176,7 +176,7 @@ export default function Home() {
                         </span>
                         <span className="landing-feature__text">
                           <strong>Bảo mật</strong>
-                          <small>Chuẩn Enterprise</small>
+                          <small>Chú trọng bảo vệ dữ liệu</small>
                         </span>
                       </li>
                       <li className="landing-feature">
@@ -430,27 +430,26 @@ export default function Home() {
                 <div className="col-lg-6 landing-slide__copy">
                   <div className="landing-slide__content">
                     <p className="landing-eyebrow landing-eyebrow--rule">
-                      Cách Chúng Tôi Làm Việc
+                      Cách chúng tôi làm việc
                     </p>
                     <h2 className="landing-slide__title" id="process-title">
                       <span className="landing-slide__title-line">
-                        Quy Trình 4 Bước
+                        Quy trình 4 bước
                       </span>
                       <span className="landing-slide__title-line landing-slide__title-line--accent">
-                        Rõ Ràng &amp; Minh Bạch
+                        Rõ ràng &amp; minh bạch
                       </span>
                     </h2>
                     <p className="landing-slide__desc">
-                      Mỗi giai đoạn có đầu ra cụ thể — bạn theo dõi tiến độ
-                      thật, nghiệm thu từng phần và nhận bàn giao đầy đủ khi lên
-                      production.
+                      Mỗi giai đoạn có đầu ra cụ thể để doanh nghiệp theo dõi
+                      tiến độ, nghiệm thu và đưa sản phẩm vào vận hành.
                     </p>
                     <div className="landing-slide__actions">
                       <button
                         className="landing-btn landing-btn--primary"
                         type="button"
                         data-slide="4">
-                        Bắt Đầu Ngay
+                        Trao đổi dự án
                         <i
                           className="fa-solid fa-arrow-right"
                           aria-hidden="true"></i>
@@ -459,7 +458,7 @@ export default function Home() {
                         className="landing-btn landing-btn--ghost"
                         type="button"
                         data-slide="0">
-                        Về Trang Chủ
+                        Về trang chủ
                         <i
                           className="fa-solid fa-arrow-right"
                           aria-hidden="true"></i>
@@ -474,7 +473,7 @@ export default function Home() {
                         </span>
                         <span className="landing-feature__text">
                           <strong>Khảo sát</strong>
-                          <small>Tư vấn &amp; báo giá 24H</small>
+                          <small>Làm rõ nhu cầu và phạm vi</small>
                         </span>
                       </li>
                       <li className="landing-feature">
@@ -484,8 +483,8 @@ export default function Home() {
                           <i className="fa-solid fa-laptop-code"></i>
                         </span>
                         <span className="landing-feature__text">
-                          <strong>Lập trình</strong>
-                          <small>Demo chạy thử 2 tuần/lần</small>
+                          <strong>Phát triển</strong>
+                          <small>Cập nhật tiến độ theo giai đoạn</small>
                         </span>
                       </li>
                       <li className="landing-feature">
@@ -496,7 +495,7 @@ export default function Home() {
                         </span>
                         <span className="landing-feature__text">
                           <strong>Kiểm thử</strong>
-                          <small>Load · Security · Staging</small>
+                          <small>Chức năng, hiệu năng và bảo mật</small>
                         </span>
                       </li>
                       <li className="landing-feature">
@@ -507,7 +506,7 @@ export default function Home() {
                         </span>
                         <span className="landing-feature__text">
                           <strong>Bàn giao</strong>
-                          <small>Source 100% · Bảo hành</small>
+                          <small>Tài liệu và hướng dẫn vận hành</small>
                         </span>
                       </li>
                     </ul>

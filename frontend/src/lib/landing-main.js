@@ -337,6 +337,11 @@ export function initLandingMain() {
   );
 
   window.addEventListener("keydown", function (e) {
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (e.target && e.target.closest && e.target.closest("input, textarea, select, [contenteditable='true']")) return;
+    // Let an expanded mobile sheet scroll with the keyboard.
+    if (isNarrow() && document.body.classList.contains("is-sheet-open") &&
+        ["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End"].includes(e.key)) return;
     if (
       e.key === "ArrowRight" ||
       e.key === "ArrowDown" ||

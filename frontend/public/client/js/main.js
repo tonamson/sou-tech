@@ -1,7 +1,12 @@
 /**
  * Fade stage carousel + GSAP content motion + mobile bottom sheet (direction A).
  */
+
 document.addEventListener("DOMContentLoaded", function () {
+  var track = document.getElementById("landing-track");
+  if (!track || track.dataset.souInited === "1") return;
+  track.dataset.souInited = "1";
+  window.__souLandingMainInited = true;
   var slides = Array.prototype.slice.call(
     document.querySelectorAll(".landing-slide")
   );
@@ -9,8 +14,6 @@ document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll("[data-slide]")
   );
   var progress = document.getElementById("landing-slide-progress");
-  var form = document.getElementById("landing-quote-form");
-  var statusEl = document.getElementById("landing-form-status");
   var brand = document.querySelector(".landing-brand");
   var sideNav = document.getElementById("landing-side-nav");
   var sheetPill = document.getElementById("landing-sheet-pill");
@@ -53,7 +56,6 @@ document.addEventListener("DOMContentLoaded", function () {
     ".landing-cap-mini",
     ".landing-slide__steps > *",
     ".landing-contact-copy > *",
-    ".landing-form",
   ].join(",");
 
   function isNarrow() {
@@ -334,6 +336,11 @@ document.addEventListener("DOMContentLoaded", function () {
   );
 
   window.addEventListener("keydown", function (e) {
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (e.target && e.target.closest && e.target.closest("input, textarea, select, [contenteditable='true']")) return;
+    // Let an expanded mobile sheet scroll with the keyboard.
+    if (isNarrow() && document.body.classList.contains("is-sheet-open") &&
+        ["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End"].includes(e.key)) return;
     if (
       e.key === "ArrowRight" ||
       e.key === "ArrowDown" ||
@@ -395,20 +402,4 @@ document.addEventListener("DOMContentLoaded", function () {
     collapseSheet();
   });
 
-  if (form) {
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
-      if (!form.checkValidity()) {
-        form.reportValidity();
-        return;
-      }
-      if (statusEl) {
-        statusEl.hidden = false;
-        statusEl.textContent =
-          "Đã nhận yêu cầu. Đội ngũ SoU sẽ phản hồi báo giá trong 24 giờ.";
-        statusEl.classList.add("is-ok");
-      }
-      form.reset();
-    });
-  }
 });
