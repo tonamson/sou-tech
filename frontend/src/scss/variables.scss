@@ -19,7 +19,7 @@ $dash-font-stack: "Manrope", sans-serif;
     var(--landing-accent-2)
   );
   --landing-neutral: #e5e7eb;
-  --landing-bg: linear-gradient(to right, #ecedef, #f4f5f8);
+  --landing-bg: radial-gradient(ellipse at 50% 42%, #ffffff 12%, #f5f6f7 48%, #e6e8eb 100%);
   --landing-ink: #0b1220;
   --landing-muted: #5c6575;
   --landing-muted-dark: #9aa3b2;

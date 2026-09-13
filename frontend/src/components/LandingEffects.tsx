@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import Loading from "./Loading";
 
 /**
  * Boot GSAP carousel + Three.js floor model after React mounts.
@@ -10,11 +11,18 @@ import { useEffect } from "react";
  * created twice on the same canvas (second context kills the first).
  */
 export default function LandingEffects() {
+  const [ready, setReady] = useState(false);
+
   useEffect(() => {
     const ac = new AbortController();
+    const finish = () => {
+      if (!ac.signal.aborted) setReady(true);
+    };
+    const fallback = window.setTimeout(finish, 8000);
 
     const timer = window.setTimeout(() => {
       void (async () => {
+        try {
         if (ac.signal.aborted) return;
 
         const [{ initWebglRipple }, { initLandingMain }] = await Promise.all([
@@ -30,14 +38,22 @@ export default function LandingEffects() {
         // WebGL first so window.transitionWebGlBg exists before carousel calls it
         initWebglRipple();
         initLandingMain();
+        await document.fonts.ready;
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        } catch (error) {
+          console.error("Landing initialization failed", error);
+        } finally {
+          finish();
+        }
       })();
     }, 0);
 
     return () => {
       ac.abort();
       window.clearTimeout(timer);
+      window.clearTimeout(fallback);
     };
   }, []);
 
-  return null;
+  return <Loading ready={ready} />;
 }

@@ -15,8 +15,6 @@ export function initLandingMain() {
     document.querySelectorAll("[data-slide]")
   );
   var progress = document.getElementById("landing-slide-progress");
-  var form = document.getElementById("landing-quote-form");
-  var statusEl = document.getElementById("landing-form-status");
   var brand = document.querySelector(".landing-brand");
   var sideNav = document.getElementById("landing-side-nav");
   var sheetPill = document.getElementById("landing-sheet-pill");
@@ -59,7 +57,6 @@ export function initLandingMain() {
     ".landing-cap-mini",
     ".landing-slide__steps > *",
     ".landing-contact-copy > *",
-    ".landing-form",
   ].join(",");
 
   function isNarrow() {
@@ -401,20 +398,4 @@ export function initLandingMain() {
     collapseSheet();
   });
 
-  if (form) {
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
-      if (!form.checkValidity()) {
-        form.reportValidity();
-        return;
-      }
-      if (statusEl) {
-        statusEl.hidden = false;
-        statusEl.textContent =
-          "Đã nhận yêu cầu. Đội ngũ SoU sẽ phản hồi báo giá trong 24 giờ.";
-        statusEl.classList.add("is-ok");
-      }
-      form.reset();
-    });
-  }
 }

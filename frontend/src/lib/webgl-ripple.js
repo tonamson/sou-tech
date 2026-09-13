@@ -423,7 +423,7 @@ export function initWebglRipple() {
       ctx.fillText("SoU", w / 2, 175);
       ctx.fillStyle = "rgba(243,244,247,0.7)";
       ctx.font = "600 22px Manrope, system-ui, sans-serif";
-      ctx.fillText("Build Tomorrow, Together", w / 2, 230);
+      ctx.fillText("Your vision. Our expertise.", w / 2, 230);
     });
   }
 
@@ -437,7 +437,7 @@ export function initWebglRipple() {
       ctx.fillText("WELCOME", w / 2, h / 2 - 24);
       ctx.fillStyle = "#a68040";
       ctx.font = "600 40px Manrope, system-ui, sans-serif";
-      ctx.fillText("Build Tomorrow, Together", w / 2, h / 2 + 70);
+      ctx.fillText("Your vision. Our expertise.", w / 2, h / 2 + 70);
     });
   }
 
@@ -653,7 +653,7 @@ export function initWebglRipple() {
     return g;
   }
 
-  /** Meeting board — blank projection (cards reveal on hover) */
+  /** Neutral meeting board backdrop; the value cards carry the content. */
   function blankBoardTex() {
     return canvasTex(1024, 512, (ctx, w, h) => {
       const bg = ctx.createLinearGradient(0, 0, w, h);
@@ -664,13 +664,6 @@ export function initWebglRipple() {
       ctx.strokeStyle = "rgba(42,168,224,0.35)";
       ctx.lineWidth = 4;
       ctx.strokeRect(24, 24, w - 48, h - 48);
-      ctx.fillStyle = "rgba(231,206,147,0.85)";
-      ctx.font = "700 40px Manrope, system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("BA GIÁ TRỊ CỐT LÕI", w / 2, h / 2 - 12);
-      ctx.fillStyle = "rgba(255,255,255,0.45)";
-      ctx.font = "600 26px Manrope, system-ui, sans-serif";
-      ctx.fillText("Di chuột vào màn hình để xem", w / 2, h / 2 + 36);
     });
   }
 
@@ -687,10 +680,10 @@ export function initWebglRipple() {
       ctx.fillText(num, 36, 90);
       ctx.fillStyle = "#ffffff";
       ctx.font = "700 40px Manrope, system-ui, sans-serif";
-      ctx.fillText(title, 36, 180);
+      title.split("\n").forEach((line, i) => ctx.fillText(line, 28, 160 + i * 48, w - 56));
       ctx.fillStyle = "rgba(255,255,255,0.7)";
       ctx.font = "600 26px Manrope, system-ui, sans-serif";
-      ctx.fillText(sub, 36, 240);
+      sub.split("\n").forEach((line, i) => ctx.fillText(line, 28, 280 + i * 34, w - 56));
     });
   }
 
@@ -1079,7 +1072,7 @@ export function initWebglRipple() {
 
   /**
    * Floor 02 — meeting room.
-   * Projector + beam follow mouse; 3 value cards reveal when hovering the screen.
+   * Projector + beam follow mouse alongside the company value cards.
    */
   function propsWhy() {
     const g = new THREE.Group();
@@ -1109,42 +1102,49 @@ export function initWebglRipple() {
     screen.name = "meetScreen";
     g.add(screen);
 
-    // 3 value cards — hidden until pointer hits screen
+    // Four values matching the About section.
     const cards = new THREE.Group();
     cards.name = "meetCards";
     cards.visible = false;
     const cardData = [
       {
         num: "01",
-        title: "Bảo Mật",
-        sub: "Chuẩn Enterprise",
+        title: "Hiểu\nnghiệp vụ",
+        sub: "Từ nhu cầu\nthực tế",
         accent: "#2aa8e0",
         mat: matCyan,
       },
       {
         num: "02",
-        title: "Hiệu Năng",
-        sub: "Mở rộng linh hoạt",
+        title: "Chú trọng\nchất lượng",
+        sub: "Kiểm thử trước\nkhi bàn giao",
         accent: "#e7ce93",
         mat: matGold,
       },
       {
         num: "03",
-        title: "Tiến Độ",
-        sub: "Minh bạch 2 tuần",
+        title: "Hợp tác\nminh bạch",
+        sub: "Phạm vi, tiến độ\nvà chi phí",
         accent: "#a68040",
         mat: matAccent,
+      },
+      {
+        num: "04",
+        title: "Đồng hành\nlâu dài",
+        sub: "Vận hành và\nphát triển",
+        accent: "#e7ce93",
+        mat: matGold,
       },
     ];
     cardData.forEach((c, i) => {
       const card = new THREE.Group();
       const body = mesh(
-        new RoundedBoxGeometry(0.58, 0.78, 0.05, 2, 0.02),
+        new RoundedBoxGeometry(0.5, 0.78, 0.05, 2, 0.02),
         matInk,
       );
       card.add(body);
       const face = mesh(
-        new THREE.PlaneGeometry(0.52, 0.72),
+        new THREE.PlaneGeometry(0.46, 0.72),
         new THREE.MeshStandardMaterial({
           map: valueCardTex(c.num, c.title, c.sub, c.accent),
           emissive: 0x0a1520,
@@ -1155,7 +1155,8 @@ export function initWebglRipple() {
       );
       face.position.z = 0.03;
       card.add(face);
-      card.position.set(-0.7 + i * 0.7, 1.32, wallZ + 0.1);
+      // This floor is mirrored; reverse authored X to read 01–04 left to right.
+      card.position.set(((cardData.length - 1) / 2 - i) * 0.55, 1.32, wallZ + 0.1);
       card.userData.cardBaseY = 1.32;
       card.userData.cardPhase = i * 0.9;
       cards.add(card);
@@ -1340,7 +1341,7 @@ export function initWebglRipple() {
         "  await db.migrate();",
         "  return { ok: true };",
         "}",
-        "// SoU · build tomorrow",
+        "// SoU · Your vision. Our expertise.",
       ];
     }
     ctx.fillStyle = "#0b1220";
@@ -1390,7 +1391,10 @@ export function initWebglRipple() {
       ctx.font = "800 42px Manrope, system-ui, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(label, s / 2, s / 2);
+      const lines = label.split("\n");
+      lines.forEach((line, i) => {
+        ctx.fillText(line, s / 2, s / 2 + (i - (lines.length - 1) / 2) * 48, s - 56);
+      });
     });
   }
 
@@ -1417,11 +1421,11 @@ export function initWebglRipple() {
       });
     });
 
-    // Capability icons on shelves: Token · Web3 · SaaS
+    // Capabilities in the same order as the content panel.
     const caps = [
-      { label: "TOKEN", accent: "#e7ce93", mat: matGold, x: -0.7, y: 1.78 },
-      { label: "WEB3", accent: "#2aa8e0", mat: matCyan, x: 0.05, y: 1.78 },
-      { label: "SAAS", accent: "#a68040", mat: matAccent, x: 0.8, y: 1.78 },
+      { label: "PHẦN MỀM\nTHEO YÊU CẦU", accent: "#e7ce93", mat: matGold, x: -0.7, y: 1.78 },
+      { label: "SAAS", accent: "#2aa8e0", mat: matCyan, x: 0.05, y: 1.78 },
+      { label: "BLOCKCHAIN\n& WEB3", accent: "#a68040", mat: matAccent, x: 0.8, y: 1.78 },
     ];
     caps.forEach((c, i) => {
       const block = mesh(
@@ -3333,11 +3337,12 @@ export function initWebglRipple() {
 
         if (meetScreen && meetCards) {
           const screenHits = meetRaycaster.intersectObject(meetScreen, false);
-          const hot = screenHits.length > 0;
+          // Keep the About values visible while reading the matching content.
+          const hot = true;
           if (hot !== meetBoardHot) {
             meetBoardHot = hot;
             meetCards.visible = hot;
-            canvas.style.cursor = hot
+            canvas.style.cursor = screenHits.length > 0
               ? "pointer"
               : orbit.dragging
                 ? "grabbing"

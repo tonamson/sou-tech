@@ -419,7 +419,7 @@ document.addEventListener("DOMContentLoaded", () => {
       ctx.fillText("SoU", w / 2, 175);
       ctx.fillStyle = "rgba(243,244,247,0.7)";
       ctx.font = "600 22px Manrope, system-ui, sans-serif";
-      ctx.fillText("Build Tomorrow, Together", w / 2, 230);
+      ctx.fillText("Your vision. Our expertise.", w / 2, 230);
     });
   }
 
@@ -433,7 +433,7 @@ document.addEventListener("DOMContentLoaded", () => {
       ctx.fillText("WELCOME", w / 2, h / 2 - 24);
       ctx.fillStyle = "#a68040";
       ctx.font = "600 40px Manrope, system-ui, sans-serif";
-      ctx.fillText("Build Tomorrow, Together", w / 2, h / 2 + 70);
+      ctx.fillText("Your vision. Our expertise.", w / 2, h / 2 + 70);
     });
   }
 
@@ -649,7 +649,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return g;
   }
 
-  /** Meeting board — blank projection (cards reveal on hover) */
+  /** Neutral meeting board backdrop; the value cards carry the content. */
   function blankBoardTex() {
     return canvasTex(1024, 512, (ctx, w, h) => {
       const bg = ctx.createLinearGradient(0, 0, w, h);
@@ -660,13 +660,6 @@ document.addEventListener("DOMContentLoaded", () => {
       ctx.strokeStyle = "rgba(42,168,224,0.35)";
       ctx.lineWidth = 4;
       ctx.strokeRect(24, 24, w - 48, h - 48);
-      ctx.fillStyle = "rgba(231,206,147,0.85)";
-      ctx.font = "700 40px Manrope, system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("BA GIÁ TRỊ CỐT LÕI", w / 2, h / 2 - 12);
-      ctx.fillStyle = "rgba(255,255,255,0.45)";
-      ctx.font = "600 26px Manrope, system-ui, sans-serif";
-      ctx.fillText("Di chuột vào màn hình để xem", w / 2, h / 2 + 36);
     });
   }
 
@@ -1075,7 +1068,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /**
    * Floor 02 — meeting room.
-   * Projector + beam follow mouse; 3 value cards reveal when hovering the screen.
+   * Projector + beam follow mouse alongside the company value cards.
    */
   function propsWhy() {
     const g = new THREE.Group();
@@ -1336,7 +1329,7 @@ document.addEventListener("DOMContentLoaded", () => {
         "  await db.migrate();",
         "  return { ok: true };",
         "}",
-        "// SoU · build tomorrow",
+        "// SoU · Your vision. Our expertise.",
       ];
     }
     ctx.fillStyle = "#0b1220";

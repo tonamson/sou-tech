@@ -1,6 +1,43 @@
 @use "./variables.scss" as *;
 @use "./breakpoint.scss" as *;
 
+.landing-contact-email {
+  margin: 1.4rem 0;
+  padding: 1.1rem 1.3rem;
+  border-left: 3px solid #b18a47;
+  background: rgba(255, 255, 255, 0.65);
+
+  &__label { display: block; font-size: 0.75rem; color: #666b72; }
+  &__address {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0.35rem 0;
+    color: #846127;
+    font-size: clamp(1rem, 1.8vw, 1.65rem);
+    font-weight: 650;
+    overflow-wrap: anywhere;
+    text-decoration: none;
+    i { font-size: 0.65em; }
+    &:hover { color: #493714; text-decoration: underline; }
+    &:focus-visible { outline: 2px solid #b18a47; outline-offset: 4px; }
+  }
+  p { margin: 0 0 0.9rem; font-size: 0.8rem; color: #666b72; }
+}
+
+.landing-contact-advice {
+  h3 { font-size: 0.9rem; margin: 0 0 0.7rem; }
+  ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.55rem; }
+  li { display: grid; grid-template-columns: 10rem 1fr; gap: 0.6rem; font-size: 0.8rem; }
+  strong { font-weight: 600; }
+  span { color: #666b72; }
+  @media (max-width: 480px) {
+    li { grid-template-columns: 1fr; gap: 0.1rem; }
+  }
+}
+
 // Reusable gold gradient applied as text fill (clips gradient to glyphs)
 %accent-text {
   background: var(--landing-accent-grad);
@@ -670,6 +707,9 @@ body.landing--stage {
     &-line {
       display: block;
       margin-top: 0;
+      // Give gradient text room for descenders without shifting the layout.
+      padding-bottom: 0.15em;
+      margin-bottom: -0.15em;
 
       & + & {
         margin-top: 0.15rem;
