@@ -1,11 +1,25 @@
 .loader {
+  --intro: 1100ms;
+  --sweep-delay: 650ms;
+  --detail-delay: 1100ms;
   position: fixed;
   inset: 0;
   z-index: 10000;
   display: grid;
   place-items: center;
+  overflow: hidden;
   background: var(--landing-bg);
   transition: opacity 600ms ease, visibility 600ms;
+}
+
+
+.halo {
+  position: absolute;
+  width: min(850px, 130vw);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #e7ce9329 0%, #fff8 38%, transparent 68%);
+  animation: glow 2400ms ease-out both;
 }
 
 .ready {
@@ -15,15 +29,29 @@
 }
 
 .identity {
+  position: relative;
   width: min(565px, 84vw);
   text-align: center;
-  animation: appear 700ms ease both;
+  transition: transform 600ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.ready .identity { transform: scale(.96) translateY(-8px); }
+.emblem { position: relative; }
+.sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 35%, #e7ce93 49%, #fff4d3 51%, transparent 65%);
+  background-size: 300% 100%;
+  mask: url('/client/images/logo.svg') center / contain no-repeat;
+  animation: sweep 1100ms var(--sweep-delay) ease-in-out both;
 }
 
 .logo {
   display: block;
   width: 100%;
   height: auto;
+  animation: appear var(--intro) cubic-bezier(.22, 1, .36, 1) both;
 }
 
 .track {
@@ -32,6 +60,7 @@
   margin: 24px auto 22px;
   overflow: hidden;
   background: #d9c8a5;
+  animation: unfold 750ms var(--detail-delay) cubic-bezier(.22, 1, .36, 1) both;
 }
 
 .track span {
@@ -49,6 +78,21 @@
   font: 500 clamp(8px, 1.8vw, 11px)/1.8 Arial, sans-serif;
   letter-spacing: .45em;
   text-transform: uppercase;
+  animation: appear 700ms var(--detail-delay) ease both;
+}
+
+@keyframes sweep {
+  0% { background-position: 100% 0; opacity: 0; }
+  15%, 75% { opacity: .9; }
+  100% { background-position: 0% 0; opacity: 0; }
+}
+@keyframes unfold {
+  from { transform: scaleX(0); opacity: 0; }
+  to { transform: scaleX(1); opacity: 1; }
+}
+@keyframes glow {
+  from { transform: scale(.85); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 @keyframes loading {
@@ -57,11 +101,13 @@
 }
 
 @keyframes appear {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(14px); filter: blur(8px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .identity, .track span { animation: none; }
-  .loader { transition: none; }
+  .logo, .tagline, .track, .halo, .track span { animation: none; }
+  .sheen { display: none; }
+  .loader, .identity { transition: none; }
+  .ready .identity { transform: none; }
 }
