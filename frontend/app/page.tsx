@@ -1,20 +1,45 @@
-"use client";
+import type { Metadata } from "next";
+import Image from "next/image";
+import { site, structuredData } from "@/src/lib/site";
 
 import LandingEffects from "@/src/components/LandingEffects";
+
+export const metadata: Metadata = {
+  alternates: { canonical: site.url },
+  openGraph: {
+    type: "website",
+    locale: "vi_VN",
+    siteName: site.name,
+    title: site.title,
+    description: site.description,
+    url: site.url,
+  },
+};
 
 export default function Home() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData).replace(/</g, "\\u003c"),
+        }}
+      />
       <LandingEffects />
+      <noscript>
+        <style>{`[data-loading-screen] { display: none !important; }`}</style>
+      </noscript>
       <a
         className="landing-brand"
         href="#hero"
         data-slide="0"
         aria-label="SoU Technology Solutions — Trang chủ">
-        <img
+        <Image
           className="landing-brand__logo"
           src="/client/images/logo.svg"
           alt="SoU Technology Solutions"
+          width={565}
+          height={248}
           loading="eager"
           decoding="async"
         />
@@ -25,59 +50,54 @@ export default function Home() {
         aria-label="Điều hướng section">
         <ul className="landing-side-nav__list" role="list">
           <li role="listitem">
-            <button
+            <a
               className="landing-side-nav__btn is-active"
-              type="button"
               data-slide="0"
-              aria-controls="hero">
+              aria-controls="hero" href="#hero">
               <span className="landing-side-nav__num">01</span>
               <span className="landing-side-nav__label">Trang Chủ</span>
               <span className="landing-side-nav__dot" aria-hidden="true"></span>
-            </button>
+            </a>
           </li>
           <li role="listitem">
-            <button
+            <a
               className="landing-side-nav__btn"
-              type="button"
               data-slide="1"
-              aria-controls="why">
+              aria-controls="why" href="#why">
               <span className="landing-side-nav__num">02</span>
               <span className="landing-side-nav__label">Về Chúng Tôi</span>
               <span className="landing-side-nav__dot" aria-hidden="true"></span>
-            </button>
+            </a>
           </li>
           <li role="listitem">
-            <button
+            <a
               className="landing-side-nav__btn"
-              type="button"
               data-slide="2"
-              aria-controls="capabilities">
+              aria-controls="capabilities" href="#capabilities">
               <span className="landing-side-nav__num">03</span>
               <span className="landing-side-nav__label">Năng Lực</span>
               <span className="landing-side-nav__dot" aria-hidden="true"></span>
-            </button>
+            </a>
           </li>
           <li role="listitem">
-            <button
+            <a
               className="landing-side-nav__btn"
-              type="button"
               data-slide="3"
-              aria-controls="process">
+              aria-controls="process" href="#process">
               <span className="landing-side-nav__num">04</span>
               <span className="landing-side-nav__label">Quy Trình</span>
               <span className="landing-side-nav__dot" aria-hidden="true"></span>
-            </button>
+            </a>
           </li>
           <li role="listitem">
-            <button
+            <a
               className="landing-side-nav__btn"
-              type="button"
               data-slide="4"
-              aria-controls="contact">
+              aria-controls="contact" href="#contact">
               <span className="landing-side-nav__num">05</span>
               <span className="landing-side-nav__label">Liên Hệ</span>
               <span className="landing-side-nav__dot" aria-hidden="true"></span>
-            </button>
+            </a>
           </li>
         </ul>
       </nav>
@@ -148,24 +168,22 @@ export default function Home() {
                       trưởng trong kỷ nguyên số.
                     </p>
                     <div className="landing-slide__actions">
-                      <button
+                      <a
                         className="landing-btn landing-btn--primary"
-                        type="button"
-                        data-slide="2">
+                        data-slide="2" href="#capabilities">
                         Khám phá năng lực
                         <i
                           className="fa-solid fa-arrow-right"
                           aria-hidden="true"></i>
-                      </button>
-                      <button
+                      </a>
+                      <a
                         className="landing-btn landing-btn--ghost"
-                        type="button"
-                        data-slide="4">
+                        data-slide="4" href="#contact">
                         Trao đổi dự án
                         <i
                           className="fa-solid fa-arrow-right"
                           aria-hidden="true"></i>
-                      </button>
+                      </a>
                     </div>
                     <ul className="landing-features" role="list">
                       <li className="landing-feature">
@@ -249,24 +267,22 @@ export default function Home() {
                       nghệ.
                     </p>
                     <div className="landing-slide__actions">
-                      <button
+                      <a
                         className="landing-btn landing-btn--primary"
-                        type="button"
-                        data-slide="2">
+                        data-slide="2" href="#capabilities">
                         Xem năng lực
                         <i
                           className="fa-solid fa-arrow-right"
                           aria-hidden="true"></i>
-                      </button>
-                      <button
+                      </a>
+                      <a
                         className="landing-btn landing-btn--ghost"
-                        type="button"
-                        data-slide="4">
+                        data-slide="4" href="#contact">
                         Trao đổi dự án
                         <i
                           className="fa-solid fa-arrow-right"
                           aria-hidden="true"></i>
-                      </button>
+                      </a>
                     </div>
                     <ul className="landing-features" role="list">
                       <li className="landing-feature">
@@ -349,24 +365,22 @@ export default function Home() {
                       giải pháp Blockchain &amp; Web3 cho doanh nghiệp.
                     </p>
                     <div className="landing-slide__actions">
-                      <button
+                      <a
                         className="landing-btn landing-btn--primary"
-                        type="button"
-                        data-slide="4">
+                        data-slide="4" href="#contact">
                         Trao đổi dự án
                         <i
                           className="fa-solid fa-arrow-right"
                           aria-hidden="true"></i>
-                      </button>
-                      <button
+                      </a>
+                      <a
                         className="landing-btn landing-btn--ghost"
-                        type="button"
-                        data-slide="3">
+                        data-slide="3" href="#process">
                         Xem quy trình
                         <i
                           className="fa-solid fa-arrow-right"
                           aria-hidden="true"></i>
-                      </button>
+                      </a>
                     </div>
                     <ul className="landing-features" role="list">
                       <li className="landing-feature">
@@ -445,24 +459,22 @@ export default function Home() {
                       tiến độ, nghiệm thu và đưa sản phẩm vào vận hành.
                     </p>
                     <div className="landing-slide__actions">
-                      <button
+                      <a
                         className="landing-btn landing-btn--primary"
-                        type="button"
-                        data-slide="4">
+                        data-slide="4" href="#contact">
                         Trao đổi dự án
                         <i
                           className="fa-solid fa-arrow-right"
                           aria-hidden="true"></i>
-                      </button>
-                      <button
+                      </a>
+                      <a
                         className="landing-btn landing-btn--ghost"
-                        type="button"
-                        data-slide="0">
+                        data-slide="0" href="#hero">
                         Về trang chủ
                         <i
                           className="fa-solid fa-arrow-right"
                           aria-hidden="true"></i>
-                      </button>
+                      </a>
                     </div>
                     <ul className="landing-features" role="list">
                       <li className="landing-feature">

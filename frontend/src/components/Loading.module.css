@@ -81,6 +81,24 @@
   animation: appear 700ms var(--detail-delay) ease both;
 }
 
+.failure {
+  padding: 0 1rem;
+  color: #493714;
+  font-size: 14px;
+}
+
+.failure button {
+  display: block;
+  width: fit-content;
+  margin: 12px auto 0;
+  padding: 8px 16px;
+  color: inherit;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
 @keyframes sweep {
   0% { background-position: 100% 0; opacity: 0; }
   15%, 75% { opacity: .9; }

@@ -12,7 +12,7 @@ export function initLandingMain() {
     document.querySelectorAll(".landing-slide")
   );
   var buttons = Array.prototype.slice.call(
-    document.querySelectorAll("[data-slide]")
+    document.querySelectorAll("a[data-slide], button[data-slide]")
   );
   var progress = document.getElementById("landing-slide-progress");
   var brand = document.querySelector(".landing-brand");
@@ -22,7 +22,10 @@ export function initLandingMain() {
   var pillFloor = document.getElementById("landing-sheet-pill-floor");
   var pillTitle = document.getElementById("landing-sheet-pill-title");
   var total = slides.length;
-  var index = 0;
+  var initialIndex = slides.findIndex(function (slide) {
+    return "#" + slide.id === window.location.hash;
+  });
+  var index = initialIndex >= 0 ? initialIndex : 0;
   var locked = false;
   var lockMs = 700;
   var touchX = null;
@@ -145,34 +148,6 @@ export function initLandingMain() {
     });
   }
 
-  function animateIn(slide, onDone) {
-    var nodes = contentNodes(slide);
-    var content = slide.querySelector(".landing-slide__content");
-
-    if (!hasGsap || reduceMotion || isNarrow()) {
-      if (content) content.style.visibility = "visible";
-      nodes.forEach(function (n) {
-        n.style.opacity = "1";
-        n.style.transform = "none";
-      });
-      if (onDone) onDone();
-      return;
-    }
-
-    if (content) gsap.set(content, { visibility: "visible" });
-    gsap.set(nodes, { autoAlpha: 0, y: 8 });
-
-    gsap.to(nodes, {
-      autoAlpha: 1,
-      y: 0,
-      duration: 0.4,
-      stagger: 0.03,
-      ease: "power2.out",
-      force3D: true,
-      onComplete: onDone,
-    });
-  }
-
   function fadeSlides(prev, next, onDone) {
     var from = slides[prev];
     var to = slides[next];
@@ -231,8 +206,13 @@ export function initLandingMain() {
     );
   }
 
-  function setSlide(next) {
-    if (locked || next < 0 || next >= total || next === index) return;
+  function setSlide(next, historyMethod = "replaceState") {
+    if (next < 0 || next >= total) return;
+    if (next === index) {
+      if (isNarrow()) setSheetOpen(true);
+      return;
+    }
+    if (locked) return;
     locked = true;
     var prev = index;
     index = next;
@@ -245,6 +225,10 @@ export function initLandingMain() {
     }
 
     markSlides(index);
+    if (isNarrow()) setSheetOpen(true);
+    if (historyMethod) {
+      window.history[historyMethod](null, "", "#" + slides[index].id);
+    }
     fadeSlides(prev, index, function () {
       locked = false;
     });
@@ -279,35 +263,45 @@ export function initLandingMain() {
 
   initSheetPill();
   slides.forEach(function (slide, i) {
-    slide.setAttribute("aria-hidden", i === 0 ? "false" : "true");
+    slide.setAttribute("aria-hidden", i === index ? "false" : "true");
     var content = slide.querySelector(".landing-slide__content");
     var nodes = contentNodes(slide);
 
     if (hasGsap) {
-      gsap.set(slide, { autoAlpha: i === 0 ? 1 : 0 });
-      if (i === 0) {
+      gsap.set(slide, { autoAlpha: i === index ? 1 : 0 });
+      if (i === index) {
         if (content) gsap.set(content, { visibility: "visible" });
       } else {
         if (content) gsap.set(content, { visibility: "hidden" });
         gsap.set(nodes, { autoAlpha: 0, y: 10 });
       }
     } else {
-      slide.style.opacity = i === 0 ? "1" : "0";
-      slide.style.visibility = i === 0 ? "visible" : "hidden";
+      slide.style.opacity = i === index ? "1" : "0";
+      slide.style.visibility = i === index ? "visible" : "hidden";
     }
   });
 
-  if (progress) progress.style.height = (1 / total) * 100 + "%";
-
+  markSlides(index);
+  setNav(index);
+  if (isNarrow() && initialIndex > 0) setSheetOpen(true);
   introChrome();
-  animateIn(slides[0]);
 
   buttons.forEach(function (el) {
     el.addEventListener("click", function (e) {
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button !== 0) return;
       e.preventDefault();
       var next = Number(el.getAttribute("data-slide"));
-      if (!Number.isNaN(next)) setSlide(next);
+      if (!Number.isNaN(next)) setSlide(next, "pushState");
     });
+  });
+
+  window.addEventListener("hashchange", function () {
+    var next = slides.findIndex(function (slide) {
+      return "#" + slide.id === window.location.hash;
+    });
+    if (next < 0 && window.location.hash) return;
+    locked = false;
+    setSlide(next < 0 ? 0 : next, null);
   });
 
   var wheelTick = 0;
@@ -401,6 +395,9 @@ export function initLandingMain() {
 
   narrowMq.addEventListener("change", function () {
     collapseSheet();
+    if (isNarrow()) setSheetOpen(true);
   });
 
+  // Enhance only after navigation is ready; failed/disabled JS keeps readable HTML.
+  document.documentElement.classList.add("landing-enhanced");
 }

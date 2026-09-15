@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
+import { site } from "@/src/lib/site";
 import "../src/scss/style.scss";
 
 const manrope = Manrope({
@@ -9,9 +10,21 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "SoU Technology Solutions | Phần mềm, SaaS & Web3",
-  description:
-    "SoU phát triển phần mềm theo yêu cầu, nền tảng SaaS và giải pháp Blockchain & Web3. Liên hệ contact@soutechnology.vn để trao đổi dự án.",
+  metadataBase: new URL(site.url),
+  title: site.title,
+  description: site.description,
+  openGraph: {
+    type: "website",
+    locale: "vi_VN",
+    siteName: site.name,
+    title: site.title,
+    description: site.description,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: site.title,
+    description: site.description,
+  },
   icons: {
     icon: "/client/images/favicon.svg",
     apple: "/client/images/favicon.svg",

@@ -5,11 +5,11 @@ import styles from "./Loading.module.css";
 
 type LoadingProps = {
   ready?: boolean;
+  failed?: boolean;
 };
 
-export default function Loading({ ready = false }: LoadingProps) {
+export default function Loading({ ready = false, failed = false }: LoadingProps) {
   const [elapsed, setElapsed] = useState(false);
-  const [timedOut, setTimedOut] = useState(false);
   const overlay = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -29,14 +29,13 @@ export default function Loading({ ready = false }: LoadingProps) {
       seen ? "200ms" : "1100ms",
     );
     const timer = window.setTimeout(() => setElapsed(true), 4000);
-    const deadline = window.setTimeout(() => setTimedOut(true), 4500);
     return () => {
       window.clearTimeout(timer);
-      window.clearTimeout(deadline);
     };
   }, []);
 
-  const dismissed = (ready && elapsed) || timedOut;
+  // Elapsed intro time alone never reveals an unrendered scene.
+  const dismissed = ready && elapsed;
   useEffect(() => {
     if (!dismissed) return;
     try {
@@ -49,9 +48,10 @@ export default function Loading({ ready = false }: LoadingProps) {
   return (
     <div
       ref={overlay}
+      data-loading-screen
       className={`${styles.loader} ${dismissed ? styles.ready : ""}`}
       role="status"
-      aria-label="Đang tải trang"
+      aria-label={failed ? "Không tải được cảnh 3D" : "Đang tải cảnh 3D"}
       aria-hidden={dismissed}>
       <div className={styles.halo} aria-hidden="true" />
       <div className={styles.identity}>
@@ -71,6 +71,14 @@ export default function Loading({ ready = false }: LoadingProps) {
           <span />
         </div>
         <p className={styles.tagline}>Your vision. Our expertise.</p>
+        {failed && (
+          <p className={styles.failure} role="alert">
+            Không tải được cảnh 3D. Vui lòng kiểm tra kết nối và thử lại.
+            <button type="button" onClick={() => window.location.reload()}>
+              Tải lại trang
+            </button>
+          </p>
+        )}
       </div>
     </div>
   );

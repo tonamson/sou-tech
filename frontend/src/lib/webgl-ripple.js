@@ -8,14 +8,23 @@ import gsap from "gsap";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 
+let sceneReady;
+
 export function initWebglRipple() {
+  if (sceneReady) return sceneReady;
   const canvas = document.getElementById("webgl-bg-canvas");
-  if (!canvas || canvas.dataset.souInited === "1") return;
+  if (!canvas) throw new Error("3D canvas is missing");
   canvas.dataset.souInited = "1";
   window.__souWebglInited = true;
 
   const slides = document.querySelectorAll(".landing-slide");
-  if (!slides.length) return;
+  if (!slides.length) throw new Error("3D slides are missing");
+
+  let finishFirstFrame;
+  sceneReady = new Promise((resolve) => { finishFirstFrame = resolve; });
+  let assetsReady = false;
+  let firstFrameRendered = false;
+  const sceneAssets = new THREE.LoadingManager(() => { assetsReady = true; });
 
   const reduceMotion = window.matchMedia(
     "(prefers-reduced-motion: reduce)",
@@ -493,7 +502,7 @@ export function initWebglRipple() {
     const logoPlane = mesh(new THREE.PlaneGeometry(1.95, 0.82), logoMat, false);
     logoPlane.position.set(0, ROOM_H * 0.78, wallZ + 0.045);
     g.add(logoPlane);
-    new THREE.ImageLoader().load(
+    new THREE.ImageLoader(sceneAssets).load(
       "/client/images/logo.svg",
       (image) => {
         // Rasterize SVG at an explicit size before uploading it to WebGL.
@@ -3611,8 +3620,15 @@ export function initWebglRipple() {
     key.target.updateMatrixWorld();
 
     renderer.render(scene, camera);
+    if (assetsReady && !firstFrameRendered) {
+      firstFrameRendered = true;
+      canvas.dataset.sceneReady = "true";
+      // Leave a paint opportunity before the loading overlay starts fading out.
+      requestAnimationFrame(() => requestAnimationFrame(finishFirstFrame));
+    }
     requestAnimationFrame(animate);
   }
+  syncCanvasToModelCol();
   animate();
 
   window.transitionWebGlBg = (prevIndex, nextIndex) => {
@@ -3649,4 +3665,5 @@ export function initWebglRipple() {
       0,
     );
   };
+  return sceneReady;
 }

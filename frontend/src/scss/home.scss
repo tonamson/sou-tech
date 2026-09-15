@@ -138,6 +138,7 @@ body.landing--stage {
   }
 
   &__btn {
+    text-decoration: none;
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: center;
@@ -477,6 +478,8 @@ body.landing--stage {
   contain: layout style;
 
   &.is-active {
+    opacity: 1;
+    visibility: visible;
     pointer-events: auto;
     z-index: 1;
 
@@ -1332,5 +1335,92 @@ body.landing--stage {
 @media (prefers-reduced-motion: reduce) {
   .landing-slide__content {
     visibility: visible;
+  }
+}
+
+// Readable server-rendered content is the default, including when JS fails.
+// The carousel opts in only after its navigation has initialized.
+html:not(.landing-enhanced) {
+  height: auto;
+  overflow: auto;
+
+  body.landing--stage {
+    height: auto;
+    overflow: auto;
+  }
+
+  .landing-stage,
+  .landing-track {
+    height: auto;
+    overflow: visible;
+  }
+
+  .landing-slide {
+    position: relative;
+    inset: auto;
+    height: auto;
+    min-height: 100dvh;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    scroll-margin-top: 2rem;
+  }
+
+  .landing-slide__content {
+    visibility: visible;
+  }
+
+  .landing-sheet-pill,
+  .landing-counter,
+  .landing-side-nav__progress,
+  .landing-webgl {
+    display: none;
+  }
+
+  @include media(md) {
+    .landing-brand {
+      position: relative;
+      display: flex;
+      width: fit-content;
+      margin-bottom: 2rem;
+    }
+
+    .landing-side-nav {
+      position: relative;
+      inset: auto;
+      margin: 1rem;
+      &__list { width: 100%; }
+    }
+
+    .landing-slide__grid.container-fluid {
+      padding: 2rem 1.25rem;
+      pointer-events: auto;
+    }
+
+    .landing-slide .landing-slide__copy {
+      display: flex !important;
+      position: relative;
+      inset: auto;
+      width: 100%;
+      max-height: none;
+      padding: 0;
+      margin: 0;
+      opacity: 1;
+      visibility: visible;
+      transform: none;
+      pointer-events: auto;
+      background: none;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      backdrop-filter: none;
+    }
+
+    .landing-slide .landing-slide__content {
+      max-height: none;
+      overflow: visible;
+    }
+
+    .landing-slide__model { display: none; }
   }
 }

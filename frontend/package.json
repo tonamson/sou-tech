@@ -6,7 +6,8 @@
     "dev": "yarn && next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:seo": "node --test scripts/check-seo.mjs"
   },
   "dependencies": {
     "gsap": "^3.15.0",

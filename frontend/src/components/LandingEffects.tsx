@@ -5,51 +5,49 @@ import Loading from "./Loading";
 import { initLandingMain } from "@/src/lib/landing-main";
 
 /**
- * Navigation is ready independently of the optional 3D scene.
- * Defer startup so React Strict Mode can cancel its first effect pass.
+ * Keep the branded loader over the page until the 3D scene has painted.
  */
 export default function LandingEffects() {
   const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     const ac = new AbortController();
-    const finish = () => {
-      if (!ac.signal.aborted) setReady(true);
-    };
-    const fallback = window.setTimeout(finish, 1500);
+    let frame = 0;
 
     const timer = window.setTimeout(() => {
       if (ac.signal.aborted) return;
-      initLandingMain();
-
-      // Fonts and one painted frame are enough to reveal the usable page.
-      void document.fonts.ready.then(() => {
-        requestAnimationFrame(() => requestAnimationFrame(finish));
+      try {
+        initLandingMain();
+      } catch (error) {
+        console.error("Navigation enhancement unavailable", error);
+        setFailed(true);
+        return;
+      }
+      // Paint the loader before scene construction and shader compilation.
+      frame = requestAnimationFrame(() => {
+        frame = requestAnimationFrame(() => {
+          void (async () => {
+            try {
+              const { initWebglRipple } = await import("@/src/lib/webgl-ripple");
+              if (ac.signal.aborted) return;
+              await initWebglRipple();
+              if (!ac.signal.aborted) setReady(true);
+            } catch (error) {
+              console.error("3D scene unavailable", error);
+              if (!ac.signal.aborted) setFailed(true);
+            }
+          })();
+        });
       });
-
     }, 0);
-
-    // Let the four-second intro and its exit transition finish before the
-    // synchronous scene construction / first shader compilation can block UI.
-    const sceneTimer = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const { initWebglRipple } = await import("@/src/lib/webgl-ripple");
-          if (ac.signal.aborted) return;
-          initWebglRipple();
-        } catch (error) {
-          console.error("3D scene unavailable; navigation remains active", error);
-        }
-      })();
-    }, 5000);
 
     return () => {
       ac.abort();
       window.clearTimeout(timer);
-      window.clearTimeout(fallback);
-      window.clearTimeout(sceneTimer);
+      cancelAnimationFrame(frame);
     };
   }, []);
 
-  return <Loading ready={ready} />;
+  return <Loading ready={ready} failed={failed} />;
 }
