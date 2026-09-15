@@ -156,16 +156,16 @@ export default function Home() {
                     </p>
                     <h1 className="landing-slide__title" id="hero-title">
                       <span className="landing-slide__title-line">
-                        Giải pháp công nghệ
+                        SoU Tech — Giải pháp công nghệ
                       </span>
                       <span className="landing-slide__title-line landing-slide__title-line--accent">
                         Cho doanh nghiệp tương lai
                       </span>
                     </h1>
                     <p className="landing-slide__desc">
-                      Chúng tôi đồng hành cùng doanh nghiệp kiến tạo giải pháp
-                      phần mềm hiện đại, tối ưu vận hành và mở ra cơ hội tăng
-                      trưởng trong kỷ nguyên số.
+                      SoU Tech (SoU Technology Solutions) đồng hành cùng doanh
+                      nghiệp kiến tạo phần mềm hiện đại, tối ưu vận hành và mở
+                      ra cơ hội tăng trưởng trong kỷ nguyên số.
                     </p>
                     <div className="landing-slide__actions">
                       <a
@@ -262,9 +262,9 @@ export default function Home() {
                       </span>
                     </h2>
                     <p className="landing-slide__desc">
-                      SoU là công ty phát triển phần mềm, giúp doanh nghiệp hiện
-                      thực hóa ý tưởng và giải quyết bài toán vận hành bằng công
-                      nghệ.
+                      SoU Tech là công ty phát triển phần mềm, giúp doanh nghiệp
+                      hiện thực hóa ý tưởng và giải quyết bài toán vận hành bằng
+                      công nghệ.
                     </p>
                     <div className="landing-slide__actions">
                       <a
@@ -361,8 +361,8 @@ export default function Home() {
                       </span>
                     </h2>
                     <p className="landing-slide__desc">
-                      SoU phát triển phần mềm theo yêu cầu, nền tảng SaaS và
-                      giải pháp Blockchain &amp; Web3 cho doanh nghiệp.
+                      SoU Tech phát triển phần mềm theo yêu cầu, nền tảng SaaS
+                      và giải pháp Blockchain &amp; Web3 cho doanh nghiệp.
                     </p>
                     <div className="landing-slide__actions">
                       <a
@@ -548,7 +548,7 @@ export default function Home() {
                         <span className="landing-slide__title-line landing-slide__title-line--accent">Giải pháp cho doanh nghiệp</span>
                       </h2>
                       <p className="landing-slide__desc">
-                        Kết nối với SoU để tư vấn phát triển phần mềm, nền tảng SaaS
+                        Kết nối với SoU Tech để tư vấn phát triển phần mềm, nền tảng SaaS
                         và giải pháp Blockchain &amp; Web3.
                       </p>
                       <div className="landing-contact-email">

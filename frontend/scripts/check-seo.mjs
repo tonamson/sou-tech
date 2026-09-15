@@ -14,7 +14,8 @@ const meta = (name) => attribute(tags.find((tag) =>
 test("homepage exposes one canonical URL and useful search metadata", () => {
   assert.equal(response.status, 200);
   assert.match(html, /<html[^>]*lang="vi"/);
-  assert.match(html, /<title>[^<]*SoU[^<]*<\/title>/);
+  assert.match(html, /<title>[^<]*SoU Tech[^<]*<\/title>/i);
+  assert.ok(meta("description")?.includes("SoU Tech"));
   assert.ok(meta("description")?.includes("phần mềm"));
   const canonicals = tags.filter((tag) => attribute(tag, "rel") === "canonical");
   assert.equal(canonicals.length, 1);
@@ -28,6 +29,7 @@ test("HTML includes the content and navigable section links before JavaScript", 
     assert.match(html, new RegExp(`<section[^>]*id="${id}"`));
     assert.match(html, new RegExp(`<a[^>]*href="#${id}"`));
   }
+  assert.match(html, /<h1[^>]*>[\s\S]*SoU Tech[\s\S]*<\/h1>/i);
   assert.match(html, /mailto:contact@soutechnology.vn/);
 });
 
@@ -38,7 +40,9 @@ test("structured data describes the visible business and website", () => {
   const organization = entities.find((entity) => entity["@type"] === "Organization");
   assert.equal(organization?.url, canonical);
   assert.equal(organization?.email, "contact@soutechnology.vn");
+  assert.deepEqual(organization?.alternateName, ["SoU Tech", "SoU"]);
   assert.equal(entities.find((entity) => entity["@type"] === "WebSite")?.url, canonical);
+  assert.equal(entities.find((entity) => entity["@type"] === "WebPage")?.url, canonical);
 });
 
 test("social preview has a working PNG image with sharing metadata", async () => {

@@ -2,9 +2,9 @@
 export const site = {
   url: "https://soutechnology.vn/",
   name: "SoU Technology Solutions",
-  title: "SoU Technology Solutions | Phần mềm, SaaS & Web3",
+  title: "SoU Tech | SoU Technology Solutions – Phần mềm, SaaS & Web3",
   description:
-    "SoU phát triển phần mềm theo yêu cầu, ứng dụng web, mobile, nền tảng SaaS và giải pháp Blockchain & Web3. Đồng hành cùng doanh nghiệp từ tư vấn đến vận hành.",
+    "SoU Tech (SoU Technology Solutions) phát triển phần mềm theo yêu cầu, ứng dụng web/mobile, SaaS và giải pháp Blockchain & Web3 cho doanh nghiệp tại Việt Nam.",
   email: "contact@soutechnology.vn",
 };
 
@@ -17,7 +17,7 @@ export const structuredData = {
       "@type": "Organization",
       "@id": organizationId,
       name: site.name,
-      alternateName: "SoU",
+      alternateName: ["SoU Tech", "SoU"],
       url: site.url,
       logo: new URL("/client/images/logo.svg", site.url).href,
       description: site.description,
@@ -28,9 +28,19 @@ export const structuredData = {
       "@id": `${site.url}#website`,
       url: site.url,
       name: site.name,
-      alternateName: "SoU",
+      alternateName: ["SoU Tech", "SoU"],
       inLanguage: "vi-VN",
       publisher: { "@id": organizationId },
+    },
+    {
+      "@type": "WebPage",
+      "@id": `${site.url}#webpage`,
+      url: site.url,
+      name: site.title,
+      description: site.description,
+      inLanguage: "vi-VN",
+      isPartOf: { "@id": `${site.url}#website` },
+      about: { "@id": organizationId },
     },
   ],
 };
