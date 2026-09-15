@@ -24,7 +24,11 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: site.title,
     description: site.description,
+    images: ["/opengraph-image"],
   },
+  robots: { index: true, follow: true },
+  applicationName: site.name,
+  category: "technology",
   icons: {
     icon: "/client/images/favicon.svg",
     apple: "/client/images/favicon.svg",

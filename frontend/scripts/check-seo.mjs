@@ -57,6 +57,12 @@ test("social preview has a working PNG image with sharing metadata", async () =>
   assert.equal(bytes.readUInt32BE(20), 630);
 });
 
+test("homepage declares an indexable Vietnamese page", () => {
+  assert.match(html, /<html[^>]*lang="vi"/);
+  assert.match(html, /<meta name="robots" content="[^\"]*index[^\"]*follow/);
+  assert.match(html, /<meta property="og:locale" content="vi_VN"/);
+});
+
 test("robots allows crawling and references the canonical sitemap", async () => {
   const result = await fetch(new URL("/robots.txt", base));
   assert.equal(result.status, 200);

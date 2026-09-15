@@ -13,7 +13,7 @@ Frontend đã có title, mô tả, tiếng Việt (`lang="vi"`), một H1 và c�
 | Nội dung HTML | Cả trang nằm trong client boundary | Nội dung là Server Component, chỉ hiệu ứng cần client |
 | Điều hướng | Nút phụ thuộc JavaScript | Anchor có href, hỗ trợ fragment, tải trực tiếp và Back |
 | Không có JavaScript | Nội dung bị CSS và loading che | Nội dung xếp dọc, liên kết cuộn được trên desktop/mobile |
-| Loading 3D | Loader tự tắt sau 4–4,5 giây; 3D bắt đầu tải ở giây 5 | Tải 3D trong lúc loading, chờ asset và khung hình đầu tiên trước khi đóng |
+| Loading 3D | Loader tự tắt sau 4–4,5 giây; 3D bắt đầu tải ở giây 5 | Tải 3D trong lúc loading, chờ asset và khung hình đầu tiên; intro 1,8 giây lần đầu và 0,8 giây lần sau |
 
 `use client` trước đây không đồng nghĩa trang không có HTML render từ server. Việc thu nhỏ client boundary giảm phần nội dung cần hydrate; vấn đề đọc khi tắt JavaScript chủ yếu nằm ở CSS và loading.
 
@@ -34,6 +34,8 @@ Loading toàn màn hình vẫn là một đánh đổi về thời gian tiếp c
 - Cố tình trì hoãn chunk 3D 6,5 giây: loading vẫn hiện sau mốc 4,5 giây; chỉ đóng sau khung hình đầu tiên.
 - Cố tình chặn chunk 3D: thông báo thử lại hiện, loading không mở ra cảnh trống.
 - Đã xem ảnh chụp desktop/mobile sau loading để xác nhận mô hình 3D có mặt.
+- Google Rich Results Test (15/09/2026): crawl production thành công, phát hiện `Organization` hợp lệ, không báo lỗi; Google hiển thị URL, logo, mô tả và email của SoU.
+- Google PageSpeed Insights đã tạo báo cáo mobile cho URL production, nhưng phiên Lighthouse giữ ở trạng thái “Chẩn đoán các vấn đề về hiệu suất” và không trả điểm trong lần chạy này. Vì vậy không ghi nhận điểm số giả; cần chạy lại sau khi endpoint ổn định.
 
 Chạy lại kiểm tra HTTP sau khi build và bật server production:
 

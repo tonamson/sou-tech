@@ -28,7 +28,10 @@ export default function Loading({ ready = false, failed = false }: LoadingProps)
       "--detail-delay",
       seen ? "200ms" : "1100ms",
     );
-    const timer = window.setTimeout(() => setElapsed(true), 4000);
+    // The intro animation is short; slow 3D assets still keep the loader up
+    // because `dismissed` also requires the scene-ready signal.
+    const introDuration = seen ? 800 : 1800;
+    const timer = window.setTimeout(() => setElapsed(true), introDuration);
     return () => {
       window.clearTimeout(timer);
     };

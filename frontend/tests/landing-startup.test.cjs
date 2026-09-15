@@ -15,11 +15,15 @@ function mount({ webglThrows = false, fontsPending = false } = {}) {
   let navigations = 0;
   let scenes = 0;
   let ready = false;
+  let stateCursor = 0;
   const timers = new Map();
   let timerId = 0;
   const modules = {
     react: {
-      useState: () => [false, (value) => { ready = value; }],
+      useState: (initial) => {
+        const index = stateCursor++;
+        return [initial, (value) => { if (index === 0) ready = value; }];
+      },
       useEffect: (callback) => { effect = callback; },
     },
     "react/jsx-runtime": { jsx: () => null },
@@ -29,6 +33,7 @@ function mount({ webglThrows = false, fontsPending = false } = {}) {
       initWebglRipple: () => {
         scenes++;
         if (webglThrows) throw new Error("WebGL unavailable");
+        return Promise.resolve();
       },
     },
   };
@@ -43,6 +48,7 @@ function mount({ webglThrows = false, fontsPending = false } = {}) {
     console: { error() {} },
     document: { fonts: { ready: fontsPending ? new Promise(() => {}) : Promise.resolve() } },
     requestAnimationFrame: (callback) => callback(),
+    cancelAnimationFrame: () => {},
     window: {
       setTimeout: (callback, delay) => {
         const id = ++timerId;
@@ -68,25 +74,22 @@ function mount({ webglThrows = false, fontsPending = false } = {}) {
   };
 }
 
-test("WebGL failure leaves navigation initialized and releases loading", async () => {
+test("WebGL failure leaves navigation initialized and keeps loading until retry", async () => {
   const app = mount({ webglThrows: true });
   app.run(0);
   assert.equal(app.state.navigations, 1);
   await new Promise(setImmediate);
-  assert.deepEqual(app.state, { navigations: 1, scenes: 0, ready: true });
-  app.run(5000);
-  await new Promise(setImmediate);
-  assert.deepEqual(app.state, { navigations: 1, scenes: 1, ready: true });
+  assert.deepEqual(app.state, { navigations: 1, scenes: 1, ready: false });
   app.cleanup();
 });
 
-test("slow fonts cannot keep the usable page behind loading", async () => {
+test("scene starts immediately and controls readiness", async () => {
   const app = mount({ fontsPending: true });
   app.run(0);
   await new Promise(setImmediate);
   assert.equal(app.state.navigations, 1);
-  assert.equal(app.state.ready, false);
-  app.run(1500);
+  assert.equal(app.state.scenes, 1);
+  await new Promise(setImmediate);
   assert.equal(app.state.ready, true);
   app.cleanup();
 });
@@ -96,12 +99,11 @@ test("cancelled Strict Mode pass starts neither navigation nor WebGL", async () 
   app.cleanup();
   app.run(0);
   app.run(1500);
-  app.run(5000);
   await new Promise(setImmediate);
   assert.deepEqual(app.state, { navigations: 0, scenes: 0, ready: false });
 });
 
-test("loading dismisses at its deadline even without the ready signal", () => {
+test("loading never dismisses from elapsed time without the ready signal", () => {
   const loadingSource = readFileSync(path.join(__dirname, "../src/components/Loading.tsx"), "utf8");
   const code = ts.transpileModule(loadingSource, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
@@ -137,11 +139,10 @@ test("loading dismisses at its deadline even without the ready signal", () => {
   const render = () => { cursor = 0; return exports.default({ ready: false }); };
   assert.equal(render().props["aria-hidden"], false);
   const cleanup = effects[0]();
-  timers.get(4000)();
+  timers.get(1800)();
   assert.equal(render().props["aria-hidden"], false);
-  timers.get(4500)();
-  assert.equal(render().props["aria-hidden"], true);
-  assert.match(render().props.className, /ready/);
+  assert.equal(render().props["aria-hidden"], false);
+  assert.doesNotMatch(render().props.className, /ready/);
   cleanup();
   assert.equal(timers.size, 0);
 });
