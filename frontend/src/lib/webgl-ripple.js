@@ -10,7 +10,17 @@ import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeom
 
 let sceneReady;
 
-export function initWebglRipple() {
+function yieldToBrowser() {
+  return new Promise((resolve) => {
+    if (typeof globalThis.scheduler?.postTask === "function") {
+      globalThis.scheduler.postTask(resolve, { priority: "user-visible" });
+      return;
+    }
+    window.setTimeout(resolve, 0);
+  });
+}
+
+export async function initWebglRipple() {
   if (sceneReady) return sceneReady;
   const canvas = document.getElementById("webgl-bg-canvas");
   if (!canvas) throw new Error("3D canvas is missing");
@@ -25,6 +35,10 @@ export function initWebglRipple() {
   let assetsReady = false;
   let firstFrameRendered = false;
   const sceneAssets = new THREE.LoadingManager(() => { assetsReady = true; });
+
+  // Let the loader paint before allocating the large diorama. This keeps the
+  // first HTML frame responsive on mobile and in Lighthouse's throttled run.
+  await yieldToBrowser();
 
   const reduceMotion = window.matchMedia(
     "(prefers-reduced-motion: reduce)",
@@ -49,13 +63,17 @@ export function initWebglRipple() {
   // Slightly isometric FOV like Journey diorama
   const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
 
+  const compactViewport = window.innerWidth <= 1024;
   const renderer = new THREE.WebGLRenderer({
     canvas,
-    antialias: true,
+    antialias: !compactViewport,
     alpha: true,
     powerPreference: "high-performance",
   });
-  const dprCap = Math.min(window.devicePixelRatio || 1, 1.5);
+  const dprCap = Math.min(
+    window.devicePixelRatio || 1,
+    compactViewport ? 1.25 : 1.5,
+  );
   renderer.setPixelRatio(dprCap);
   renderer.setClearColor(LANDING_BG, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -67,6 +85,7 @@ export function initWebglRipple() {
 
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  await yieldToBrowser();
 
   // Soft studio: warm key + cool fill, low contrast
   scene.add(new THREE.AmbientLight(0xf6f4f0, 0.3));
@@ -74,7 +93,8 @@ export function initWebglRipple() {
   const key = new THREE.DirectionalLight(0xfff1e4, 0.88);
   key.position.set(4.5, 11, 5.5);
   key.castShadow = true;
-  key.shadow.mapSize.set(2048, 2048);
+  const shadowMapSize = compactViewport ? 1024 : 1536;
+  key.shadow.mapSize.set(shadowMapSize, shadowMapSize);
   key.shadow.camera.near = 1;
   key.shadow.camera.far = 40;
   key.shadow.camera.left = -10;
@@ -201,6 +221,7 @@ export function initWebglRipple() {
   const texPlaster = plasterTex();
   texPlaster.wrapS = texPlaster.wrapT = THREE.RepeatWrapping;
   texPlaster.repeat.set(3, 2.2);
+  await yieldToBrowser();
 
   const matGold = makeMetal(0xd4af5a, 0.88, 0.24);
   const matCyan = makeMetal(0x2aa8e0, 0.48, 0.34);
@@ -2986,6 +3007,9 @@ export function initWebglRipple() {
   }
 
   for (let i = 0; i < FLOOR_COUNT; i++) {
+    // Each floor contains many meshes and rounded geometries. Yield between
+    // floors so the browser can process input and paint the loading state.
+    await yieldToBrowser();
     const meta = floorMeta[i] || floorMeta[0];
     const side = floorSide(i);
     const floorG = new THREE.Group();
@@ -3093,6 +3117,8 @@ export function initWebglRipple() {
   let transitioning = false;
   const mouse = { x: 0, y: 0, tx: 0, ty: 0 };
   const clock = new THREE.Clock();
+  const frameInterval = compactViewport ? 1000 / 30 : 0;
+  let lastFrameAt = 0;
   const _orbitOffset = new THREE.Vector3();
   const _orbitLook = new THREE.Vector3();
 
@@ -3258,7 +3284,12 @@ export function initWebglRipple() {
   window.addEventListener("pointerup", endOrbitDrag);
   window.addEventListener("pointercancel", endOrbitDrag);
 
-  function animate() {
+  function animate(now = performance.now()) {
+    if (document.hidden || (frameInterval && now - lastFrameAt < frameInterval)) {
+      requestAnimationFrame(animate);
+      return;
+    }
+    lastFrameAt = now;
     const t = clock.getElapsedTime();
     mouse.x += (mouse.tx - mouse.x) * 0.06;
     mouse.y += (mouse.ty - mouse.y) * 0.06;
