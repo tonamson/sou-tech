@@ -20,6 +20,15 @@ test("homepage exposes one canonical URL and useful search metadata", () => {
   const canonicals = tags.filter((tag) => attribute(tag, "rel") === "canonical");
   assert.equal(canonicals.length, 1);
   assert.equal(new URL(attribute(canonicals[0], "href")).href, canonical);
+  assert.equal(new URL(meta("og:url")).href, canonical);
+  assert.ok(
+    tags.some(
+      (tag) =>
+        attribute(tag, "rel") === "preconnect" &&
+        attribute(tag, "href") === "https://cdnjs.cloudflare.com",
+    ),
+    "Font Awesome CDN should have a preconnect hint",
+  );
   assert.doesNotMatch(meta("robots") || "", /noindex|nofollow/);
 });
 
@@ -41,8 +50,17 @@ test("structured data describes the visible business and website", () => {
   assert.equal(organization?.url, canonical);
   assert.equal(organization?.email, "contact@soutechnology.vn");
   assert.deepEqual(organization?.alternateName, ["SoU Tech", "SoU"]);
+  assert.equal(organization?.contactPoint?.["@type"], "ContactPoint");
+  assert.equal(organization?.contactPoint?.email, "contact@soutechnology.vn");
   assert.equal(entities.find((entity) => entity["@type"] === "WebSite")?.url, canonical);
   assert.equal(entities.find((entity) => entity["@type"] === "WebPage")?.url, canonical);
+});
+
+test("contact information uses semantic address markup", () => {
+  assert.match(
+    html,
+    /<address[^>]*>[\s\S]*mailto:contact@soutechnology\.vn[\s\S]*<\/address>/i,
+  );
 });
 
 test("social preview has a working PNG image with sharing metadata", async () => {

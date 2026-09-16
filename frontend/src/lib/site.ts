@@ -22,6 +22,12 @@ export const structuredData = {
       logo: new URL("/client/images/logo.svg", site.url).href,
       description: site.description,
       email: site.email,
+      contactPoint: {
+        "@type": "ContactPoint",
+        email: site.email,
+        contactType: "business inquiries",
+        availableLanguage: "vi",
+      },
     },
     {
       "@type": "WebSite",

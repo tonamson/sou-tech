@@ -551,7 +551,7 @@ export default function Home() {
                         Kết nối với SoU Tech để tư vấn phát triển phần mềm, nền tảng SaaS
                         và giải pháp Blockchain &amp; Web3.
                       </p>
-                      <div className="landing-contact-email">
+                      <address className="landing-contact-email">
                         <span className="landing-contact-email__label">Trao đổi trực tiếp với chúng tôi</span>
                         <a className="landing-contact-email__address" href="mailto:contact@soutechnology.vn">
                           contact@soutechnology.vn
@@ -562,7 +562,7 @@ export default function Home() {
                           Gửi email cho SoU
                           <i className="fa-solid fa-arrow-right" aria-hidden="true"></i>
                         </a>
-                      </div>
+                      </address>
                       <div className="landing-contact-advice">
                         <h3>SoU tư vấn cùng bạn</h3>
                         <ul>

@@ -13,10 +13,14 @@ export const metadata: Metadata = {
   metadataBase: new URL(site.url),
   title: site.title,
   description: site.description,
+  alternates: {
+    canonical: site.url,
+  },
   openGraph: {
     type: "website",
     locale: "vi_VN",
     siteName: site.name,
+    url: site.url,
     title: site.title,
     description: site.description,
   },
@@ -39,6 +43,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="vi" className={manrope.className}>
       <head>
+        <link
+          rel="preconnect"
+          href="https://cdnjs.cloudflare.com"
+          crossOrigin="anonymous"
+        />
         <link rel="stylesheet" href="/client/css/bootstrap.min.css" />
         <link
           rel="stylesheet"
