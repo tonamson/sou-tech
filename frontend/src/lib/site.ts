@@ -6,6 +6,7 @@ export const site = {
   description:
     "SoU Tech (SoU Technology Solutions) phát triển phần mềm theo yêu cầu, ứng dụng web/mobile, SaaS và giải pháp Blockchain & Web3 cho doanh nghiệp tại Việt Nam.",
   email: "contact@soutechnology.vn",
+  facebook: "https://www.facebook.com/soutechnologyvn",
 };
 
 export const organizationId = `${site.url}#organization`;
@@ -22,6 +23,7 @@ export const structuredData = {
       logo: new URL("/client/images/logo.svg", site.url).href,
       description: site.description,
       email: site.email,
+      sameAs: [site.facebook],
       contactPoint: {
         "@type": "ContactPoint",
         email: site.email,

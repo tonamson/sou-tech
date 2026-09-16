@@ -28,6 +28,39 @@
   p { margin: 0 0 0.9rem; font-size: 0.8rem; color: #666b72; }
 }
 
+.landing-contact-facebook {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin: 0 0 1.2rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(177, 138, 71, 0.25);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.65);
+  color: var(--landing-ink);
+  text-decoration: none;
+  transition: background 0.2s ease, border-color 0.2s ease;
+
+  &__icon {
+    display: flex;
+    flex: 0 0 auto;
+    color: #846127;
+  }
+
+  &__copy {
+    display: grid;
+    flex: 1;
+    min-width: 0;
+    gap: 0.15rem;
+    strong { font-size: 0.85rem; font-weight: 650; }
+    span { font-size: 0.75rem; color: #666b72; }
+  }
+
+  > i { flex: 0 0 auto; font-size: 0.75rem; color: #846127; }
+  &:hover { background: #fff; border-color: #b18a47; }
+  &:focus-visible { outline: 2px solid #b18a47; outline-offset: 4px; }
+}
+
 .landing-contact-advice {
   h3 { font-size: 0.9rem; margin: 0 0 0.7rem; }
   ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.55rem; }
