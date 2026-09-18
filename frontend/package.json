@@ -10,6 +10,7 @@
     "test:seo": "node --test scripts/check-seo.mjs"
   },
   "dependencies": {
+    "@vercel/speed-insights": "^2.0.0",
     "gsap": "^3.15.0",
     "html-to-jsx": "^0.0.4",
     "next": "16.3.4",

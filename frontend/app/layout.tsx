@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 import { site } from "@/src/lib/site";
 import "../src/scss/style.scss";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const manrope = Manrope({
   subsets: ["latin", "vietnamese"],
@@ -54,7 +55,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
         />
       </head>
-      <body className="landing landing--stage">{children}</body>
+      <body className="landing landing--stage">
+        {children}
+        <SpeedInsights />
+      </body>
     </html>
   );
 }
