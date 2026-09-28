@@ -557,6 +557,10 @@ export default function Home() {
                           contact@soutechnology.vn
                           <i className="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
                         </a>
+                        <a className="landing-contact-email__address" href="tel:0877721112" aria-label="Gọi SoU qua số điện thoại 087 772 1112">
+                          087 772 1112
+                          <i className="fa-solid fa-phone" aria-hidden="true"></i>
+                        </a>
                         <p>Chia sẻ ngắn gọn nhu cầu hoặc gửi tài liệu dự án qua email.</p>
                         <a className="landing-btn landing-btn--primary" href="mailto:contact@soutechnology.vn">
                           Gửi email cho SoU
