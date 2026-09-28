@@ -354,7 +354,7 @@ export default function Home() {
                     </p>
                     <h2 className="landing-slide__title" id="caps-title">
                       <span className="landing-slide__title-line">
-                        Công nghệ &amp; nội dung số
+                        Giải pháp công nghệ
                       </span>
                       <span className="landing-slide__title-line landing-slide__title-line--accent">
                         Theo yêu cầu doanh nghiệp
@@ -362,7 +362,8 @@ export default function Home() {
                     </h2>
                     <p className="landing-slide__desc">
                       SoU Tech phát triển phần mềm, SaaS, Blockchain &amp; Web3
-                      và cung cấp dịch vụ chăm sóc website cho doanh nghiệp.
+                      cùng dịch vụ chăm sóc và kiểm thử bảo mật website
+                      cho doanh nghiệp.
                     </p>
                     <div className="landing-slide__actions">
                       <a
@@ -433,6 +434,20 @@ export default function Home() {
                           <strong>Chăm sóc website cho doanh nghiệp</strong>
                           <small>
                             Viết và đăng bài, cập nhật nội dung website.
+                          </small>
+                        </span>
+                      </li>
+                      <li className="landing-feature landing-feature--wide">
+                        <span
+                          className="landing-feature__icon"
+                          aria-hidden="true">
+                          <i className="fa-solid fa-shield-halved"></i>
+                        </span>
+                        <span className="landing-feature__text">
+                          <strong>Kiểm thử bảo mật website (Pentest)</strong>
+                          <small>
+                            Đánh giá lỗ hổng bảo mật, báo cáo mức độ rủi ro
+                            và đề xuất khắc phục theo phạm vi thống nhất.
                           </small>
                         </span>
                       </li>
@@ -562,8 +577,8 @@ export default function Home() {
                       </h2>
                       <p className="landing-slide__desc">
                         Kết nối với SoU Tech để tư vấn phần mềm, SaaS,
-                        Blockchain &amp; Web3 hoặc dịch vụ chăm sóc website
-                        cho doanh nghiệp.
+                        Blockchain &amp; Web3, chăm sóc website và kiểm thử
+                        bảo mật website (Pentest) cho doanh nghiệp.
                       </p>
                       <address className="landing-contact-email">
                         <span className="landing-contact-email__label">Trao đổi trực tiếp với chúng tôi</span>
