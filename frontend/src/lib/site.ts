@@ -4,7 +4,7 @@ export const site = {
   name: "SoU Technology Solutions",
   title: "SoU Tech | SoU Technology Solutions – Phần mềm, SaaS & Web3",
   description:
-    "SoU Tech (SoU Technology Solutions) phát triển phần mềm theo yêu cầu, ứng dụng web/mobile, SaaS và giải pháp Blockchain & Web3 cho doanh nghiệp tại Việt Nam.",
+    "SoU Tech phát triển phần mềm, SaaS, Blockchain & Web3; chăm sóc website cho doanh nghiệp, viết và đăng bài, cập nhật nội dung website.",
   email: "contact@soutechnology.vn",
   facebook: "https://www.facebook.com/soutechnologyvn",
 };

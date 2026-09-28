@@ -350,19 +350,19 @@ export default function Home() {
                 <div className="col-lg-6 landing-slide__copy">
                   <div className="landing-slide__content">
                     <p className="landing-eyebrow landing-eyebrow--rule">
-                      Năng lực phát triển
+                      Năng lực &amp; dịch vụ
                     </p>
                     <h2 className="landing-slide__title" id="caps-title">
                       <span className="landing-slide__title-line">
-                        Phát triển phần mềm
+                        Công nghệ &amp; nội dung số
                       </span>
                       <span className="landing-slide__title-line landing-slide__title-line--accent">
                         Theo yêu cầu doanh nghiệp
                       </span>
                     </h2>
                     <p className="landing-slide__desc">
-                      SoU Tech phát triển phần mềm theo yêu cầu, nền tảng SaaS
-                      và giải pháp Blockchain &amp; Web3 cho doanh nghiệp.
+                      SoU Tech phát triển phần mềm, SaaS, Blockchain &amp; Web3
+                      và cung cấp dịch vụ chăm sóc website cho doanh nghiệp.
                     </p>
                     <div className="landing-slide__actions">
                       <a
@@ -420,6 +420,19 @@ export default function Home() {
                           <strong>Blockchain &amp; Web3</strong>
                           <small>
                             Smart contract ERC-20 và website Web3 theo yêu cầu.
+                          </small>
+                        </span>
+                      </li>
+                      <li className="landing-feature">
+                        <span
+                          className="landing-feature__icon"
+                          aria-hidden="true">
+                          <i className="fa-solid fa-pen-to-square"></i>
+                        </span>
+                        <span className="landing-feature__text">
+                          <strong>Chăm sóc website cho doanh nghiệp</strong>
+                          <small>
+                            Viết và đăng bài, cập nhật nội dung website.
                           </small>
                         </span>
                       </li>
@@ -548,8 +561,9 @@ export default function Home() {
                         <span className="landing-slide__title-line landing-slide__title-line--accent">Giải pháp cho doanh nghiệp</span>
                       </h2>
                       <p className="landing-slide__desc">
-                        Kết nối với SoU Tech để tư vấn phát triển phần mềm, nền tảng SaaS
-                        và giải pháp Blockchain &amp; Web3.
+                        Kết nối với SoU Tech để tư vấn phần mềm, SaaS,
+                        Blockchain &amp; Web3 hoặc dịch vụ chăm sóc website
+                        cho doanh nghiệp.
                       </p>
                       <address className="landing-contact-email">
                         <span className="landing-contact-email__label">Trao đổi trực tiếp với chúng tôi</span>
