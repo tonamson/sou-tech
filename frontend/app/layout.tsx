@@ -3,6 +3,7 @@ import { Manrope } from "next/font/google";
 import { site } from "@/src/lib/site";
 import "../src/scss/style.scss";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import Script from "next/script";
 
 const manrope = Manrope({
   subsets: ["latin", "vietnamese"],
@@ -57,6 +58,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="landing landing--stage">
         {children}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-JF58F8B6SP"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){window.dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-JF58F8B6SP');
+          `}
+        </Script>
         <SpeedInsights />
       </body>
     </html>
