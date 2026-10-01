@@ -1,0 +1,3 @@
+Furniture GLBs: Kenney.nl Furniture Kit (CC0 1.0)
+Character + idle/run FBX: Mixamo-compatible characterMedium rig
+Character skins (SVG UV): style matched to VP office skin pack (le-tan, etc.)

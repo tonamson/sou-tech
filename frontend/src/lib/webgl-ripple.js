@@ -7,6 +7,14 @@ import * as THREE from "three";
 import gsap from "gsap";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import {
+  loadOfficeKit,
+  populateFloors,
+  createNameTagLayer,
+  syncNameTags,
+  updateActors,
+  updateOfficeFlow,
+} from "@/src/lib/office";
 
 let sceneReady;
 
@@ -35,6 +43,8 @@ export async function initWebglRipple() {
   let assetsReady = false;
   let firstFrameRendered = false;
   const sceneAssets = new THREE.LoadingManager(() => { assetsReady = true; });
+  // Bắt đầu tải Kenney GLB + FBX song song lúc dựng phòng
+  const kitPromise = loadOfficeKit(sceneAssets);
 
   // Let the loader paint before allocating the large diorama. This keeps the
   // first HTML frame responsive on mobile and in Lighthouse's throttled run.
@@ -335,74 +345,6 @@ export async function initWebglRipple() {
     return g;
   }
 
-  /** Office chair — shared Labs / Talk silhouette */
-  function addOfficeChair(parent, x, y, z) {
-    const g = new THREE.Group();
-    g.position.set(x, y, z);
-    const seat = mesh(
-      new RoundedBoxGeometry(0.4, 0.08, 0.4, 2, 0.04),
-      matAccent,
-    );
-    seat.position.y = 0.4;
-    g.add(seat);
-    const back = mesh(
-      new RoundedBoxGeometry(0.4, 0.5, 0.08, 2, 0.03),
-      matAccent,
-    );
-    back.position.set(0, 0.68, 0.17);
-    g.add(back);
-    // Lumbar + armrests — reads as chair, not blocks
-    const lumbar = mesh(
-      new RoundedBoxGeometry(0.28, 0.12, 0.04, 2, 0.015),
-      matNavy,
-      false,
-    );
-    lumbar.position.set(0, 0.58, 0.14);
-    g.add(lumbar);
-    [-0.22, 0.22].forEach((sx) => {
-      const arm = mesh(
-        new RoundedBoxGeometry(0.06, 0.04, 0.28, 2, 0.015),
-        matInk,
-        false,
-      );
-      arm.position.set(sx, 0.52, 0.02);
-      g.add(arm);
-      const post = mesh(
-        new THREE.CylinderGeometry(0.015, 0.015, 0.14, 8),
-        matInk,
-        false,
-      );
-      post.position.set(sx, 0.45, 0.08);
-      g.add(post);
-    });
-    const pole = mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.28, 8), matInk);
-    pole.position.y = 0.24;
-    g.add(pole);
-    const hub = mesh(
-      new THREE.CylinderGeometry(0.05, 0.05, 0.04, 12),
-      matInk,
-      false,
-    );
-    hub.position.y = 0.08;
-    g.add(hub);
-    for (let i = 0; i < 5; i++) {
-      const a = (i / 5) * Math.PI * 2;
-      const spoke = mesh(
-        new RoundedBoxGeometry(0.22, 0.03, 0.05, 1, 0.008),
-        matInk,
-        false,
-      );
-      spoke.position.set(Math.cos(a) * 0.1, 0.08, Math.sin(a) * 0.1);
-      spoke.rotation.y = -a;
-      g.add(spoke);
-      const wheel = mesh(new THREE.SphereGeometry(0.028, 10, 8), matInk, false);
-      wheel.position.set(Math.cos(a) * 0.2, 0.03, Math.sin(a) * 0.2);
-      g.add(wheel);
-    }
-    parent.add(g);
-    return g;
-  }
-
   /** Journey-style big wall title on accent wall */
   function wallTitleTex(num, title, bg) {
     return canvasTex(512, 512, (ctx, w, h) => {
@@ -471,6 +413,41 @@ export async function initWebglRipple() {
     });
   }
 
+  /** Chậu cây xanh procedural — port VP `cayChau`. */
+  function cayChau(parent, x, z, k = 1) {
+    const matPotW = makeMatte(0xf4f4f1, 0.6);
+    const matTrunk = makeMatte(0x6e5440, 0.85);
+    const chau = mesh(
+      new THREE.CylinderGeometry(0.2 * k, 0.16 * k, 0.36 * k, 20),
+      matPotW,
+    );
+    chau.position.set(x, 0.18 * k, z);
+    parent.add(chau);
+    const stem = mesh(
+      new THREE.BoxGeometry(0.035 * k, 0.5 * k, 0.035 * k),
+      matTrunk,
+    );
+    stem.position.set(x, 0.55 * k, z);
+    parent.add(stem);
+    for (const [dx, dy, dz, r, hex] of [
+      [0, 0.95, 0, 0.3, 0x3f8f4f],
+      [0.14, 0.78, 0.06, 0.22, 0x4fa35c],
+      [-0.13, 0.82, -0.05, 0.23, 0x357e45],
+      [0, 0.7, -0.14, 0.18, 0x5baf63],
+    ]) {
+      const leaf = mesh(
+        new THREE.IcosahedronGeometry(r * k, 1),
+        new THREE.MeshStandardMaterial({
+          color: hex,
+          flatShading: true,
+          roughness: 0.9,
+        }),
+      );
+      leaf.position.set(x + dx * k, dy * k, z + dz * k);
+      parent.add(leaf);
+    }
+  }
+
   /**
    * Floor 01 — concierge stage: big logo + desk back + AI greeting front.
    * Value icons live in HTML copy — keep 3D uncluttered.
@@ -479,14 +456,15 @@ export async function initWebglRipple() {
     const g = new THREE.Group();
     const wallZ = -ROOM_D / 2 + 0.09;
 
-    // Welcome rug — forward of desk (clearance), not under counter
+    // Welcome rug — phía trước quầy
+    const rugZ = 0.58;
     const rug = mesh(
       new RoundedBoxGeometry(1.4, 0.035, 0.9, 2, 0.04),
       matRug,
       false,
       true,
     );
-    rug.position.set(0, 0.075, 0.58);
+    rug.position.set(0, 0.075, rugZ);
     g.add(rug);
     const rugLabel = mesh(
       new THREE.PlaneGeometry(1.15, 0.55),
@@ -501,8 +479,12 @@ export async function initWebglRipple() {
       false,
     );
     rugLabel.rotation.x = -Math.PI / 2;
-    rugLabel.position.set(0, 0.1, 0.58);
+    rugLabel.position.set(0, 0.1, rugZ);
     g.add(rugLabel);
+
+    // 2 chậu cây xanh 2 bên thảm (VP cayChau)
+    cayChau(g, -0.95, rugZ, 0.78);
+    cayChau(g, 0.95, rugZ, 0.78);
 
     // Large brand plaque
     const plaque = mesh(
@@ -544,58 +526,111 @@ export async function initWebglRipple() {
       () => {},
     );
 
-    // Desk pushed back — stage for AI in front
-    const desk = mesh(
-      new RoundedBoxGeometry(1.55, 0.1, 0.48, 3, 0.05),
+    // Quầy lễ tân kiểu VP quayLeTan: thân trắng + mặt gỗ, mặt ra +Z
+    // Ref: https://ledangminhnhat.com/wp-content/uploads/2026/09/van-phong-ai-3d.html
+    // Đồng bộ LOBBY_COUNTER (resources) — lui gần tường cho sảnh thoáng
+    const CQ = { x: 0, z: -0.48, w: 2.24, h: 0.46, d: 0.44 };
+    const deskTopY = CQ.h + 0.04;
+    const body = mesh(
+      new RoundedBoxGeometry(CQ.w, CQ.h, CQ.d, 2, 0.03),
       matWhite,
     );
-    desk.position.set(0, 0.7, -0.35);
-    g.add(desk);
-    const deskKick = mesh(
-      new RoundedBoxGeometry(1.48, 0.52, 0.38, 3, 0.045),
+    body.position.set(CQ.x, CQ.h / 2, CQ.z);
+    g.add(body);
+    const woodTop = mesh(
+      new RoundedBoxGeometry(CQ.w + 0.08, 0.035, CQ.d + 0.08, 2, 0.015),
+      matWood,
+    );
+    woodTop.position.set(CQ.x, deskTopY - 0.01, CQ.z);
+    g.add(woodTop);
+    // Biển SoU trước quầy: chữ đen, nền trắng, viền navy
+    const frontPlateW = CQ.w * 0.48;
+    const frontPlateH = 0.14;
+    const frontNavy = mesh(
+      new RoundedBoxGeometry(frontPlateW + 0.03, frontPlateH + 0.03, 0.028, 1, 0.006),
       matNavy,
-    );
-    deskKick.position.set(0, 0.34, -0.38);
-    g.add(deskKick);
-    const stripe = mesh(
-      new RoundedBoxGeometry(1.55, 0.035, 0.035, 2, 0.01),
-      matGold,
       false,
     );
-    stripe.position.set(0, 0.76, -0.12);
-    g.add(stripe);
+    frontNavy.position.set(CQ.x, 0.28, CQ.z + CQ.d / 2 + 0.018);
+    g.add(frontNavy);
+    const souFrontTex = canvasTex(512, 160, (ctx, w, h) => {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = "#12151a";
+      ctx.font = "800 108px Manrope, system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("SoU", w / 2, h / 2 + 4);
+    });
+    const frontLogo = mesh(
+      new THREE.PlaneGeometry(frontPlateW, frontPlateH),
+      new THREE.MeshBasicMaterial({
+        map: souFrontTex,
+        toneMapped: false,
+      }),
+      false,
+    );
+    frontLogo.position.set(CQ.x, 0.28, CQ.z + CQ.d / 2 + 0.034);
+    g.add(frontLogo);
 
-    // Welcome terminal on desk
-    const term = mesh(
-      new RoundedBoxGeometry(0.42, 0.28, 0.04, 2, 0.012),
-      matInk,
-      false,
+    // Màn hình mỏng nhôm kiểu Studio Display (VP manHinh) — mặt kính hướng lễ tân (−Z)
+    const monK = 0.85;
+    const monW = 0.52 * monK;
+    const monH = 0.31 * monK;
+    const mon = new THREE.Group();
+    mon.name = "lobbyMonitor";
+    mon.position.set(0.42, deskTopY, CQ.z);
+    const matAlu = new THREE.MeshStandardMaterial({
+      color: 0xc3c8cc,
+      roughness: 0.35,
+      metalness: 0.45,
+    });
+    const monYc = 0.13 * monK + monH / 2;
+    const bezel = mesh(
+      new THREE.BoxGeometry(monW, monH, 0.018 * monK),
+      matAlu,
     );
-    term.position.set(-0.42, 0.92, -0.42);
-    term.rotation.x = -0.32;
-    g.add(term);
+    bezel.position.y = monYc;
+    mon.add(bezel);
     const welcomeMat = new THREE.MeshStandardMaterial({
       map: welcomeScreenTex(),
-      emissive: 0x102030,
-      emissiveIntensity: 0.65,
+      emissive: 0x1a2436,
+      emissiveIntensity: 0.55,
       roughness: 0.35,
     });
-    const termScreen = mesh(
-      new THREE.PlaneGeometry(0.36, 0.22),
+    // Plane mặc định nhìn +Z → xoay PI để mặt kính nhìn −Z (về phía lễ tân)
+    const screen = mesh(
+      new THREE.PlaneGeometry(monW - 0.018, monH - 0.018),
       welcomeMat,
       false,
     );
-    termScreen.position.set(-0.42, 0.93, -0.395);
-    termScreen.rotation.x = -0.32;
-    g.add(termScreen);
+    screen.position.set(0, monYc, -0.0095 * monK - 0.001);
+    screen.rotation.y = Math.PI;
+    mon.add(screen);
+    const monStand = mesh(
+      new THREE.BoxGeometry(0.11 * monK, 0.16 * monK, 0.014),
+      matAlu,
+      false,
+    );
+    monStand.position.set(0, 0.075 * monK, 0.035 * monK);
+    monStand.rotation.x = 0.2;
+    mon.add(monStand);
+    const base = mesh(
+      new THREE.BoxGeometry(0.17 * monK, 0.008, 0.14 * monK),
+      matAlu,
+      false,
+    );
+    base.position.set(0, 0.004, 0.03 * monK);
+    mon.add(base);
+    g.add(mon);
 
-    // Nameplate
+    // Nameplate trên quầy (bên trái màn)
     const plate = mesh(
-      new RoundedBoxGeometry(0.36, 0.06, 0.12, 2, 0.015),
+      new RoundedBoxGeometry(0.32, 0.05, 0.1, 2, 0.012),
       matGold,
       false,
     );
-    plate.position.set(0.45, 0.78, -0.2);
+    plate.position.set(-0.45, deskTopY + 0.03, CQ.z + 0.05);
     g.add(plate);
 
     // --- AI concierge — standing in front of desk, faces camera (+Z) ---
@@ -815,14 +850,16 @@ export async function initWebglRipple() {
     back.position.set(0, ROOM_H / 2, -ROOM_D / 2 + 0.02);
     g.add(back);
 
-    // Warm cove strip under ceiling line
-    const cove = mesh(
-      new RoundedBoxGeometry(ROOM_W - 0.2, 0.03, 0.04, 1, 0.01),
-      matCove,
-      false,
-    );
-    cove.position.set(0, ROOM_H - 0.08, -ROOM_D / 2 + 0.12);
-    g.add(cove);
+    // Warm cove strip under ceiling line (tắt khi AI Wall / noCove)
+    if (!opts.noCove) {
+      const cove = mesh(
+        new RoundedBoxGeometry(ROOM_W - 0.2, 0.03, 0.04, 1, 0.01),
+        matCove,
+        false,
+      );
+      cove.position.set(0, ROOM_H - 0.08, -ROOM_D / 2 + 0.12);
+      g.add(cove);
+    }
 
     // Wall titles only when requested — plain / logo / board skip (avoids z-fight flicker)
     if (opts.wallArt === "title") {
@@ -993,27 +1030,6 @@ export async function initWebglRipple() {
     cap.position.set(side * (ROOM_W / 2), postH - 0.07, -ROOM_D / 2);
     g.add(cap);
 
-    // Rug (skip when opts.rug === false — e.g. process floor)
-    if (opts.rug !== false) {
-      const rug = mesh(
-        new RoundedBoxGeometry(1.35, 0.03, 1.0, 3, 0.05),
-        matRug,
-        false,
-        true,
-      );
-      rug.position.set(side * 0.15, 0.07, 0.2);
-      g.add(rug);
-      const rugEdge = mesh(
-        new THREE.TorusGeometry(0.62, 0.012, 6, 32),
-        matGold,
-        false,
-      );
-      rugEdge.rotation.x = Math.PI / 2;
-      rugEdge.scale.set(1.05, 0.78, 1);
-      rugEdge.position.set(side * 0.15, 0.085, 0.2);
-      g.add(rugEdge);
-    }
-
     return g;
   }
 
@@ -1096,16 +1112,11 @@ export async function initWebglRipple() {
       if (obj === group) return;
       obj.position.x *= -1;
     });
-    // Keep authored X arrays in sync with mirrored meshes
-    const proc = group.userData?.process;
-    if (proc?.xs) proc.xs = proc.xs.map((x) => -x);
-    if (proc?.stationPts)
-      proc.stationPts.forEach((p) => {
-        p.x *= -1;
-      });
     const contact = group.userData?.contact;
     if (contact?.deskPos) contact.deskPos.x *= -1;
     if (contact?.mailPos) contact.mailPos.x *= -1;
+    const ship = group.userData?.ship;
+    if (ship?.aim) ship.aim.x *= -1;
     return group;
   }
 
@@ -1231,121 +1242,54 @@ export async function initWebglRipple() {
     wallSide.name = "meetWallSide";
     g.add(wallSide);
 
-    // Conference table
-    const table = mesh(
-      new RoundedBoxGeometry(1.7, 0.08, 0.85, 3, 0.045),
-      matWhite,
-    );
-    table.position.set(0, 0.55, 0.15);
-    g.add(table);
-    [
-      [-0.7, 0.3],
-      [0.7, 0.3],
-      [-0.7, -0.25],
-      [0.7, -0.25],
-    ].forEach(([x, z]) => {
-      const leg = mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.5, 8), matInk);
-      leg.position.set(x, 0.28, 0.15 + z);
-      g.add(leg);
-    });
-
-    // Chairs with legs
-    [-0.55, 0, 0.55].forEach((x) => {
-      const seat = mesh(
-        new RoundedBoxGeometry(0.32, 0.06, 0.32, 3, 0.03),
-        matAccent,
-      );
-      seat.position.set(x, 0.42, 0.78);
-      g.add(seat);
-      const back = mesh(
-        new RoundedBoxGeometry(0.32, 0.38, 0.06, 3, 0.03),
-        matAccent,
-      );
-      back.position.set(x, 0.62, 0.92);
-      g.add(back);
-      [
-        [-0.11, 0.1],
-        [0.11, 0.1],
-        [-0.11, -0.1],
-        [0.11, -0.1],
-      ].forEach(([dx, dz]) => {
-        const cleg = mesh(
-          new THREE.CylinderGeometry(0.018, 0.02, 0.4, 8),
-          matInk,
-        );
-        cleg.position.set(x + dx, 0.2, 0.78 + dz);
-        g.add(cleg);
-      });
-    });
-
-    // Projector — mouse rotates this group; beam is child so it follows
+    // Nội thất coaching 1:1 → loungeChair + tableRound (FURNITURE_BY_FLOOR[1])
+    // Giữ projector ẩn để logic mouse-follow cũ không lỗi
     const projector = new THREE.Group();
     projector.name = "meetProjector";
-    projector.position.set(0, 0.67, 0.2);
-    projector.rotation.order = "YXZ";
-    projector.rotation.x = 0.48;
-
-    const projBody = mesh(
-      new RoundedBoxGeometry(0.38, 0.12, 0.3, 2, 0.02),
-      matInk,
-    );
-    projector.add(projBody);
-    const projLens = mesh(
-      new THREE.CylinderGeometry(0.055, 0.068, 0.08, 12),
-      matCyan,
-    );
-    projLens.rotation.x = Math.PI / 2;
-    projLens.position.set(0, 0.01, -0.16);
-    projector.add(projLens);
-    const lensGlow = mesh(new THREE.CircleGeometry(0.05, 16), matGlow, false);
-    lensGlow.position.set(0, 0.01, -0.205);
-    projector.add(lensGlow);
-
-    const beamMat = new THREE.MeshBasicMaterial({
-      color: 0x9ad4f0,
-      transparent: true,
-      opacity: 0.14,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-    });
-    // Cone default +Y → rotate to shoot along local −Z (lens)
-    const beam = mesh(
-      new THREE.ConeGeometry(0.55, 1.9, 4, 1, true),
-      beamMat,
-      false,
-      false,
-    );
-    beam.name = "meetBeam";
-    beam.rotation.x = Math.PI / 2;
-    beam.position.set(0, 0.02, -1.05);
-    projector.add(beam);
+    projector.visible = false;
     g.add(projector);
 
+    // Bộ ấm trà trên bàn tròn — port VP phòng coaching (ấm + vòi + 2 chén)
+    const teaMat = new THREE.MeshStandardMaterial({
+      color: 0xf4f4f1,
+      roughness: 0.3,
+      metalness: 0.05,
+    });
+    const cupMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.3,
+      metalness: 0.02,
+    });
+    const teaY = 0.26; // mặt bàn tableRound sau scale
+    const tx = 0;
+    const tz = 0.05;
+    const pot = mesh(
+      new THREE.SphereGeometry(0.055, 16, 12),
+      teaMat,
+    );
+    pot.scale.set(1, 0.8, 1);
+    pot.position.set(tx - 0.04, teaY + 0.05, tz - 0.02);
+    g.add(pot);
+    const spout = mesh(
+      new THREE.CylinderGeometry(0.007, 0.012, 0.07, 8),
+      teaMat,
+      false,
+    );
+    spout.position.set(tx + 0.02, teaY + 0.065, tz + 0.02);
+    spout.rotation.z = -0.9;
+    g.add(spout);
     [
-      [-0.12, 0.08],
-      [0.12, 0.08],
-      [-0.12, -0.06],
-      [0.12, -0.06],
+      [0.1, 0.08],
+      [-0.06, 0.12],
     ].forEach(([dx, dz]) => {
-      const pad = mesh(
-        new THREE.CylinderGeometry(0.02, 0.02, 0.04, 8),
-        matGold,
+      const cup = mesh(
+        new THREE.CylinderGeometry(0.022, 0.018, 0.04, 12),
+        cupMat,
         false,
       );
-      pad.position.set(dx, 0.59, 0.2 + dz);
-      g.add(pad);
+      cup.position.set(tx + dx, teaY + 0.02, tz + dz);
+      g.add(cup);
     });
-
-    const laptop = mesh(
-      new RoundedBoxGeometry(0.32, 0.02, 0.22, 1, 0.005),
-      matInk,
-    );
-    laptop.position.set(0.55, 0.61, 0.28);
-    g.add(laptop);
-    const lid = mesh(new THREE.BoxGeometry(0.32, 0.2, 0.01), matNavy, false);
-    lid.position.set(0.55, 0.72, 0.16);
-    lid.rotation.x = -0.4;
-    g.add(lid);
 
     return g;
   }
@@ -1438,126 +1382,590 @@ export async function initWebglRipple() {
   }
 
   /**
-   * Floor 03 — capabilities lab (desk + dual code monitors + wall shelf icons).
+   * Floor 03 — Labs: bàn làm việc + 3 khung tranh treo tường sau.
    */
   function propsCaps() {
     const g = new THREE.Group();
     const wallZ = -ROOM_D / 2 + 0.09;
 
-    // Wall shelves (back wall)
-    [1.55, 1.15].forEach((y, si) => {
-      const shelf = mesh(
-        new RoundedBoxGeometry(2.0, 0.06, 0.28, 2, 0.02),
-        matWhite,
-      );
-      shelf.position.set(0.05, y, wallZ + 0.2);
-      g.add(shelf);
-      // brackets
-      [-0.85, 0, 0.85].forEach((x) => {
-        const br = mesh(new THREE.BoxGeometry(0.04, 0.12, 0.08), matInk, false);
-        br.position.set(x, y - 0.08, wallZ + 0.12);
-        g.add(br);
-      });
-    });
-
-    // Capabilities in the same order as the content panel.
-    const caps = [
-      { label: "PHẦN MỀM\nTHEO YÊU CẦU", accent: "#e7ce93", mat: matGold, x: -0.7, y: 1.78 },
-      { label: "SAAS", accent: "#2aa8e0", mat: matCyan, x: 0.05, y: 1.78 },
-      { label: "BLOCKCHAIN\n& WEB3", accent: "#a68040", mat: matAccent, x: 0.8, y: 1.78 },
+    // 3 khung tranh treo tường (thay kệ + box)
+    const frames = [
+      { label: "PHẦN MỀM\nTHEO YÊU CẦU", accent: "#e7ce93", frame: matGold, x: -0.75 },
+      { label: "SAAS", accent: "#2aa8e0", frame: matCyan, x: 0 },
+      { label: "BLOCKCHAIN\n& WEB3", accent: "#a68040", frame: matAccent, x: 0.75 },
     ];
-    caps.forEach((c, i) => {
-      const block = mesh(
-        new RoundedBoxGeometry(0.42, 0.42, 0.2, 2, 0.03),
-        matInk,
+    const frameY = 1.55;
+    const fw = 0.52;
+    const fh = 0.52;
+    const rim = 0.04;
+    frames.forEach((c) => {
+      // Khung mỏng ôm sát tường
+      const border = mesh(
+        new THREE.BoxGeometry(fw, fh, 0.035),
+        c.frame,
+        false,
       );
-      block.position.set(c.x, c.y, wallZ + 0.28);
-      g.add(block);
-      const face = mesh(
-        new THREE.PlaneGeometry(0.36, 0.36),
+      border.position.set(c.x, frameY, wallZ + 0.04);
+      g.add(border);
+      // Lót tối phía trong khung
+      const mat = mesh(
+        new THREE.BoxGeometry(fw - rim * 2, fh - rim * 2, 0.02),
+        matInk,
+        false,
+      );
+      mat.position.set(c.x, frameY, wallZ + 0.055);
+      g.add(mat);
+      // Mặt tranh
+      const art = mesh(
+        new THREE.PlaneGeometry(fw - rim * 2 - 0.02, fh - rim * 2 - 0.02),
         new THREE.MeshStandardMaterial({
           map: capIconTex(c.label, c.accent),
           emissive: 0x102030,
-          emissiveIntensity: 0.4,
-          roughness: 0.4,
+          emissiveIntensity: 0.35,
+          roughness: 0.45,
         }),
         false,
       );
-      face.position.set(c.x, c.y, wallZ + 0.4);
-      g.add(face);
-      // Small accent cube beside
-      const gem = mesh(
-        new RoundedBoxGeometry(0.14, 0.14, 0.14, 2, 0.02),
-        c.mat,
-      );
-      gem.position.set(c.x + 0.32, 1.28, wallZ + 0.28);
-      gem.userData.floatIcon = { baseY: 1.28, phase: i * 1.2 };
-      g.add(gem);
+      art.position.set(c.x, frameY, wallZ + 0.07);
+      g.add(art);
     });
 
-    // Lower shelf props (books / modules)
-    [-0.7, -0.35, 0.05, 0.4, 0.75].forEach((x, i) => {
-      const h = 0.18 + (i % 3) * 0.06;
-      const book = mesh(
-        new RoundedBoxGeometry(0.12, h, 0.22, 1, 0.01),
-        [matCyan, matGold, matNavy, matAccent, matInk][i],
-      );
-      book.position.set(x, 1.15 + h / 2 + 0.03, wallZ + 0.26);
-      g.add(book);
+    // Bàn trắng VP banHienDai — local: người ngồi −Z nhìn +Z
+    const DESK_H = 0.5;
+    const matAlu = new THREE.MeshStandardMaterial({
+      color: 0xc3c8cc,
+      roughness: 0.35,
+      metalness: 0.45,
+    });
+    const matTop = new THREE.MeshStandardMaterial({
+      color: 0xf4f4f1,
+      roughness: 0.55,
+      metalness: 0.05,
     });
 
-    // L-shaped desk
-    const deskA = mesh(
-      new RoundedBoxGeometry(1.55, 0.07, 0.62, 3, 0.04),
-      matWhite,
-    );
-    deskA.position.set(0.15, 0.62, 0.05);
-    g.add(deskA);
-    const deskB = mesh(
-      new RoundedBoxGeometry(0.55, 0.07, 1.0, 3, 0.04),
-      matWhite,
-    );
-    deskB.position.set(0.75, 0.62, 0.35);
-    g.add(deskB);
-    // Desk legs
-    [
-      [-0.5, -0.18],
-      [0.55, -0.18],
-      [-0.5, 0.22],
-      [0.95, 0.22],
-      [0.95, 0.7],
-    ].forEach(([x, z]) => {
-      const leg = mesh(
-        new THREE.CylinderGeometry(0.03, 0.035, 0.58, 8),
-        matInk,
-      );
-      leg.position.set(0.15 + x, 0.31, 0.05 + z);
-      g.add(leg);
-    });
+    // kbZ: local −Z về phía người ngồi (mặc định −0.17)
+    const addBanHienDai = (x, z, rotY, kbZ = -0.17) => {
+      const grp = new THREE.Group();
+      grp.position.set(x, 0, z);
+      grp.rotation.y = rotY;
+      const w = 0.98;
+      const d = 0.68;
+      const top = mesh(new THREE.BoxGeometry(w, 0.03, d), matTop);
+      top.position.set(0, DESK_H - 0.015, 0);
+      grp.add(top);
+      for (const s of [-1, 1]) {
+        const leg = mesh(
+          new THREE.BoxGeometry(0.035, DESK_H - 0.03, 0.05),
+          matAlu,
+        );
+        leg.position.set(s * (w / 2 - 0.07), (DESK_H - 0.03) / 2, 0);
+        grp.add(leg);
+        const foot = mesh(new THREE.BoxGeometry(0.04, 0.02, d - 0.08), matAlu);
+        foot.position.set(s * (w / 2 - 0.07), 0.01, 0);
+        grp.add(foot);
+      }
+      const rail = mesh(new THREE.BoxGeometry(w - 0.16, 0.025, 0.025), matAlu);
+      rail.position.set(0, DESK_H - 0.07, d / 2 - 0.07);
+      grp.add(rail);
+      // Bàn phím + pad chuột navy (brand)
+      const kb = mesh(new THREE.BoxGeometry(0.3, 0.01, 0.1), matNavy, false);
+      kb.position.set(0, DESK_H + 0.005, kbZ);
+      grp.add(kb);
+      const pad = mesh(new THREE.BoxGeometry(0.1, 0.005, 0.08), matNavy, false);
+      pad.position.set(-0.24, DESK_H + 0.0025, kbZ);
+      grp.add(pad);
+      g.add(grp);
+      return grp;
+    };
 
-    // Dual monitors with live code
     const codeA = codeScreenState(0);
     const codeB = codeScreenState(1.7);
-    g.userData.codeScreens = [codeA, codeB];
-    paintCodeScreen(codeA, 0);
-    paintCodeScreen(codeB, 0);
+    const codeC = codeScreenState(3.1);
+    g.userData.codeScreens = [codeA, codeB, codeC];
+    [codeA, codeB, codeC].forEach((s) => paintCodeScreen(s, 0));
 
-    [
-      { x: -0.25, rot: 0.18, code: codeA },
-      { x: 0.35, rot: -0.12, code: codeB },
-    ].forEach(({ x, rot, code }) => {
-      const stand = mesh(new THREE.BoxGeometry(0.1, 0.14, 0.08), matInk, false);
-      stand.position.set(x, 0.72, -0.12);
-      g.add(stand);
-      const bezel = mesh(
-        new RoundedBoxGeometry(0.58, 0.38, 0.04, 1, 0.01),
-        matInk,
+    /** Studio Display — local mặt kính −Z (về phía người ngồi). */
+    const addManHinh = (x, y, z, quay, code, k = 1) => {
+      const grp = new THREE.Group();
+      grp.position.set(x, y, z);
+      grp.rotation.y = quay;
+      const W = 0.52 * k;
+      const H = 0.31 * k;
+      const yc = 0.13 * k + H / 2;
+      const than = mesh(new THREE.BoxGeometry(W, H, 0.018 * k), matAlu);
+      than.position.y = yc;
+      grp.add(than);
+      const matGlass = new THREE.MeshStandardMaterial({
+        map: code.tex,
+        emissive: 0x0a2030,
+        emissiveIntensity: 0.55,
+        roughness: 0.35,
+      });
+      const mat_ = mesh(
+        new THREE.PlaneGeometry(W - 0.018, H - 0.018),
+        matGlass,
+        false,
       );
-      bezel.position.set(x, 0.98, -0.14);
-      bezel.rotation.y = rot;
-      g.add(bezel);
-      const screen = mesh(
-        new THREE.PlaneGeometry(0.52, 0.32),
+      mat_.position.set(0, yc, -0.0095 * k - 0.001);
+      mat_.rotation.y = Math.PI;
+      grp.add(mat_);
+      const chan = mesh(
+        new THREE.BoxGeometry(0.11 * k, 0.16 * k, 0.014),
+        matAlu,
+        false,
+      );
+      chan.position.set(0, 0.075 * k, 0.035 * k);
+      chan.rotation.x = 0.2;
+      grp.add(chan);
+      const de = mesh(
+        new THREE.BoxGeometry(0.17 * k, 0.008, 0.14 * k),
+        matAlu,
+        false,
+      );
+      de.position.set(0, 0.004, 0.03 * k);
+      grp.add(de);
+      g.add(grp);
+    };
+
+    // World offset từ local (dx,dz) khi bàn quay rotY
+    const wOff = (x, z, rotY, dx, dz) => ({
+      x: x + dx * Math.cos(rotY) - dz * Math.sin(rotY),
+      z: z + dx * Math.sin(rotY) + dz * Math.cos(rotY),
+    });
+
+    // 2 bàn 1 màn — sát tường sau, quay 0 (mặt vào phòng / +Z)
+    const backZ = -0.5;
+    const backRot = 0;
+    [
+      { x: -0.55, code: codeC },
+      { x: 0.45, code: codeA },
+    ].forEach(({ x, code }) => {
+      addBanHienDai(x, backZ, backRot);
+      const m = wOff(x, backZ, backRot, 0, 0.12);
+      addManHinh(m.x, DESK_H, m.z, backRot, code);
+    });
+
+    // KS 2 màn — giữ chỗ; bàn xoay ngược (−π/2)
+    const ksX = 0.9;
+    const ksZ = 0.7;
+    const ksRot = Math.PI / 2;
+    addBanHienDai(ksX, ksZ, -ksRot);
+    const mL = wOff(ksX, ksZ, ksRot, -0.26, 0.1);
+    const mR = wOff(ksX, ksZ, ksRot, 0.26, 0.1);
+    addManHinh(mL.x, DESK_H, mL.z, ksRot - 0.22 + Math.PI, codeA);
+    addManHinh(mR.x, DESK_H, mR.z, ksRot + 0.22 + Math.PI, codeB);
+
+    // Tủ máy chủ — chỗ cũ góc trái (như trước khi chuyển cạnh KS)
+    const rack = mesh(
+      new THREE.BoxGeometry(0.5, 0.95, 0.5),
+      new THREE.MeshStandardMaterial({ color: 0x1c2126, roughness: 0.7 }),
+    );
+    rack.position.set(-1.25, 0.475, 0.55);
+    g.add(rack);
+    const rackGlass = mesh(
+      new THREE.BoxGeometry(0.44, 0.85, 0.01),
+      new THREE.MeshStandardMaterial({
+        color: 0x2c3440,
+        metalness: 0.5,
+        roughness: 0.1,
+      }),
+      false,
+    );
+    rackGlass.position.set(-1.25, 0.5, 0.8);
+    g.add(rackGlass);
+    // Đèn SV nháy — port VP DEN_MAY / tuMay
+    const serverLeds = [];
+    for (let i = 0; i < 8; i++) {
+      const ledMat = new THREE.MeshStandardMaterial({
+        color: i % 3 ? 0x22c55e : 0x38bdf8,
+        emissive: i % 3 ? 0x22c55e : 0x38bdf8,
+        emissiveIntensity: 1,
+        roughness: 0.35,
+        metalness: 0.1,
+      });
+      const d = mesh(new THREE.BoxGeometry(0.05, 0.02, 0.01), ledMat, false);
+      d.position.set(
+        -1.39 + (i % 4) * 0.09,
+        0.3 + Math.floor(i / 4) * 0.35,
+        0.81,
+      );
+      d.userData.ledIndex = i;
+      g.add(d);
+      serverLeds.push(d);
+    }
+    g.userData.serverLeds = serverLeds;
+
+    return g;
+  }
+
+  /**
+   * Board quy trình U (refined):
+   * 01 Khảo sát → 02 Phát triển
+   *                      ↓
+   * 04 Bàn giao ← 03 Kiểm thử
+   */
+  function processBoardState() {
+    const c = document.createElement("canvas");
+    c.width = 1280;
+    c.height = 720;
+    const ctx = c.getContext("2d");
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 8;
+    return { canvas: c, ctx, tex };
+  }
+
+  function paintProcessBoard(state, t) {
+    const { ctx, canvas: c, tex } = state;
+    const w = c.width;
+    const h = c.height;
+    const steps = [
+      { num: "01", title: "Khảo sát", sub: "Nhu cầu & phạm vi", accent: "#5bc6e8" },
+      { num: "02", title: "Phát triển", sub: "Xây dựng theo giai đoạn", accent: "#e7ce93" },
+      { num: "03", title: "Kiểm thử", sub: "Chất lượng & bảo mật", accent: "#5bc6e8" },
+      { num: "04", title: "Bàn giao", sub: "Vận hành cùng SoU", accent: "#c9a35a" },
+    ];
+    // Tâm node pipeline U
+    const nodes = [
+      { x: 280, y: 230 },
+      { x: 1000, y: 230 },
+      { x: 1000, y: 520 },
+      { x: 280, y: 520 },
+    ];
+    const edges = [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+    ];
+    const easeInOut = (u) =>
+      u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2;
+
+    const n = 4;
+    const cycle = (t * 0.22) % n;
+    const i0 = Math.floor(cycle);
+    const f = cycle - i0;
+    // 0–0.38 hold · 0.38–1 move (ease)
+    const hold =
+      f < 0.38 ? 0 : f > 0.97 ? 1 : easeInOut((f - 0.38) / 0.59);
+    const i1 = (i0 + 1) % n;
+
+    // Background + vignette
+    const bg = ctx.createLinearGradient(0, 0, w * 0.2, h);
+    bg.addColorStop(0, "#0a1422");
+    bg.addColorStop(0.55, "#13283f");
+    bg.addColorStop(1, "#1a3550");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+    const vig = ctx.createRadialGradient(
+      w * 0.5,
+      h * 0.45,
+      h * 0.15,
+      w * 0.5,
+      h * 0.5,
+      h * 0.72,
+    );
+    vig.addColorStop(0, "rgba(0,0,0,0)");
+    vig.addColorStop(1, "rgba(5,10,18,0.55)");
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, w, h);
+
+    // Soft frame
+    ctx.strokeStyle = "rgba(231,206,147,0.28)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(28, 24, w - 56, h - 48, 18);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(42,168,224,0.12)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(40, 36, w - 80, h - 72, 14);
+    ctx.stroke();
+
+    // Header
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "rgba(91,198,232,0.85)";
+    ctx.font = "600 18px Manrope, system-ui, sans-serif";
+    ctx.letterSpacing = "0.18em";
+    ctx.fillText("CÁCH CHÚNG TÔI LÀM VIỆC", w / 2, 78);
+    ctx.letterSpacing = "0px";
+    ctx.fillStyle = "#f0e2b8";
+    ctx.font = "700 42px Manrope, system-ui, sans-serif";
+    ctx.fillText("Quy trình 4 bước", w / 2, 128);
+    // Accent rule under title
+    const ruleGrad = ctx.createLinearGradient(w * 0.35, 0, w * 0.65, 0);
+    ruleGrad.addColorStop(0, "rgba(231,206,147,0)");
+    ruleGrad.addColorStop(0.5, "rgba(231,206,147,0.55)");
+    ruleGrad.addColorStop(1, "rgba(231,206,147,0)");
+    ctx.strokeStyle = ruleGrad;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.34, 148);
+    ctx.lineTo(w * 0.66, 148);
+    ctx.stroke();
+
+    const R = 36; // node radius — track inset từ tâm
+
+    // Track rails (inactive)
+    edges.forEach(([a, b]) => {
+      const p0 = nodes[a];
+      const p1 = nodes[b];
+      const ang = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+      const x0 = p0.x + Math.cos(ang) * (R + 8);
+      const y0 = p0.y + Math.sin(ang) * (R + 8);
+      const x1 = p1.x - Math.cos(ang) * (R + 8);
+      const y1 = p1.y - Math.sin(ang) * (R + 8);
+      ctx.strokeStyle = "rgba(243,244,247,0.1)";
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+    });
+
+    // Progress fill trên các cạnh
+    edges.forEach(([a, b], ei) => {
+      const p0 = nodes[a];
+      const p1 = nodes[b];
+      const ang = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+      const x0 = p0.x + Math.cos(ang) * (R + 8);
+      const y0 = p0.y + Math.sin(ang) * (R + 8);
+      const x1 = p1.x - Math.cos(ang) * (R + 8);
+      const y1 = p1.y - Math.sin(ang) * (R + 8);
+      let u = 0;
+      if (ei < i0) u = 1;
+      else if (ei === i0 && i0 < 3) u = hold;
+      if (u <= 0.001) return;
+      const xe = x0 + (x1 - x0) * u;
+      const ye = y0 + (y1 - y0) * u;
+      const lg = ctx.createLinearGradient(x0, y0, xe, ye);
+      lg.addColorStop(0, "rgba(42,168,224,0.25)");
+      lg.addColorStop(1, "rgba(231,206,147,0.95)");
+      ctx.strokeStyle = lg;
+      ctx.lineWidth = 3.5;
+      ctx.lineCap = "round";
+      ctx.shadowColor = "rgba(231,206,147,0.35)";
+      ctx.shadowBlur = ei === i0 ? 10 : 0;
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(xe, ye);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    });
+
+    // Nodes
+    steps.forEach((s, i) => {
+      const p = nodes[i];
+      const hot = i === i0 && f < 0.82;
+      const done = i < i0 || (i === i0 && hold > 0.98);
+
+      if (hot) {
+        const glow = ctx.createRadialGradient(p.x, p.y, 8, p.x, p.y, 70);
+        glow.addColorStop(0, `${s.accent}55`);
+        glow.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 70, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Outer ring
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, R, 0, Math.PI * 2);
+      ctx.fillStyle = hot ? "rgba(25,49,74,0.95)" : "rgba(11,18,32,0.92)";
+      ctx.fill();
+      ctx.lineWidth = hot ? 2.5 : 1.5;
+      ctx.strokeStyle = hot
+        ? s.accent
+        : done
+          ? "rgba(42,168,224,0.55)"
+          : "rgba(243,244,247,0.18)";
+      ctx.stroke();
+
+      // Inner disc
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, R - 7, 0, Math.PI * 2);
+      const disc = ctx.createLinearGradient(p.x, p.y - R, p.x, p.y + R);
+      if (hot) {
+        disc.addColorStop(0, "rgba(231,206,147,0.28)");
+        disc.addColorStop(1, "rgba(25,49,74,0.9)");
+      } else if (done) {
+        disc.addColorStop(0, "rgba(42,168,224,0.2)");
+        disc.addColorStop(1, "rgba(15,28,44,0.95)");
+      } else {
+        disc.addColorStop(0, "rgba(36,78,122,0.35)");
+        disc.addColorStop(1, "rgba(11,18,32,0.95)");
+      }
+      ctx.fillStyle = disc;
+      ctx.fill();
+
+      ctx.fillStyle = hot ? "#fff6dc" : s.accent;
+      ctx.font = "700 20px Manrope, system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(s.num, p.x, p.y);
+
+      // Labels dưới / cạnh node — tránh đè track
+      const labelY = i < 2 ? p.y + R + 28 : p.y + R + 28;
+      ctx.fillStyle = hot ? "#f7efd4" : "rgba(243,244,247,0.92)";
+      ctx.font = "600 22px Manrope, system-ui, sans-serif";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillText(s.title, p.x, labelY);
+      ctx.fillStyle = hot
+        ? "rgba(231,206,147,0.75)"
+        : "rgba(243,244,247,0.42)";
+      ctx.font = "500 15px Manrope, system-ui, sans-serif";
+      ctx.fillText(s.sub, p.x, labelY + 24);
+    });
+
+    // Traveler orb
+    const pA = nodes[i0];
+    const pB = nodes[i1];
+    let tx = pA.x;
+    let ty = pA.y;
+    let travAlpha = 1;
+    if (i0 < 3) {
+      const ang = Math.atan2(pB.y - pA.y, pB.x - pA.x);
+      const x0 = pA.x + Math.cos(ang) * (R + 8);
+      const y0 = pA.y + Math.sin(ang) * (R + 8);
+      const x1 = pB.x - Math.cos(ang) * (R + 8);
+      const y1 = pB.y - Math.sin(ang) * (R + 8);
+      tx = x0 + (x1 - x0) * hold;
+      ty = y0 + (y1 - y0) * hold;
+      if (hold < 0.02) {
+        tx = pA.x;
+        ty = pA.y;
+      }
+    } else {
+      // Pause ở 04 rồi fade
+      travAlpha = f < 0.55 ? 1 : Math.max(0, 1 - (f - 0.55) / 0.45);
+      tx = pA.x;
+      ty = pA.y;
+    }
+    if (travAlpha > 0.02) {
+      ctx.globalAlpha = travAlpha;
+      const orb = ctx.createRadialGradient(tx - 2, ty - 2, 1, tx, ty, 16);
+      orb.addColorStop(0, "#fff6dc");
+      orb.addColorStop(0.45, "#e7ce93");
+      orb.addColorStop(1, "rgba(166,128,64,0)");
+      ctx.fillStyle = orb;
+      ctx.beginPath();
+      ctx.arc(tx, ty, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(tx, ty, 4.5, 0, Math.PI * 2);
+      ctx.fillStyle = "#19314a";
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    tex.needsUpdate = true;
+  }
+
+  /**
+   * Floor 04 — Ship:
+   * - PM: bàn dài (PC + máy chiếu), lui gần tường, nhìn board (−Z)
+   * - Tester: ngồi tường −X, mặt đối diện cửa (+X)
+   * Props procedural bị mirror X — ghế/NV dùng tọa độ FINAL.
+   */
+  function propsProcess() {
+    const g = new THREE.Group();
+    const wallZ = -ROOM_D / 2 + 0.09;
+    const DESK_H = 0.5;
+    const matAlu = new THREE.MeshStandardMaterial({
+      color: 0xc3c8cc,
+      roughness: 0.35,
+      metalness: 0.45,
+    });
+    const matTop = new THREE.MeshStandardMaterial({
+      color: 0xf4f4f1,
+      roughness: 0.55,
+      metalness: 0.05,
+    });
+
+    // Board = màn chiếu quy trình (pipeline U chạy tuần tự)
+    const procBoard = processBoardState();
+    paintProcessBoard(procBoard, 0);
+    const frame = mesh(
+      new RoundedBoxGeometry(2.2, 1.22, 0.06, 2, 0.03),
+      matInk,
+      false,
+      true,
+    );
+    frame.position.set(0.05, 1.65, wallZ);
+    g.add(frame);
+    const boardMat = new THREE.MeshStandardMaterial({
+      map: procBoard.tex,
+      emissive: 0x1a3048,
+      emissiveIntensity: 0.55,
+      roughness: 0.4,
+      metalness: 0.04,
+    });
+    const board = mesh(
+      new THREE.PlaneGeometry(2.1, 1.18),
+      boardMat,
+      false,
+      false,
+    );
+    board.position.set(0.05, 1.65, wallZ + 0.04);
+    board.name = "shipScreen";
+    g.add(board);
+
+    // w/d local; người ngồi phía local −Z
+    const addDesk = (x, z, rotY, w = 0.98, d = 0.68) => {
+      const grp = new THREE.Group();
+      grp.position.set(x, 0, z);
+      grp.rotation.y = rotY;
+      const top = mesh(new THREE.BoxGeometry(w, 0.03, d), matTop);
+      top.position.set(0, DESK_H - 0.015, 0);
+      grp.add(top);
+      for (const s of [-1, 1]) {
+        const leg = mesh(
+          new THREE.BoxGeometry(0.035, DESK_H - 0.03, 0.05),
+          matAlu,
+        );
+        leg.position.set(s * (w / 2 - 0.07), (DESK_H - 0.03) / 2, 0);
+        grp.add(leg);
+        const foot = mesh(new THREE.BoxGeometry(0.04, 0.02, d - 0.08), matAlu);
+        foot.position.set(s * (w / 2 - 0.07), 0.01, 0);
+        grp.add(foot);
+      }
+      const kb = mesh(new THREE.BoxGeometry(0.3, 0.01, 0.1), matNavy, false);
+      kb.position.set(0, DESK_H + 0.005, -0.17);
+      grp.add(kb);
+      g.add(grp);
+      return grp;
+    };
+
+    const wOff = (x, z, rotY, dx, dz) => ({
+      x: x + dx * Math.cos(rotY) - dz * Math.sin(rotY),
+      z: z + dx * Math.sin(rotY) + dz * Math.cos(rotY),
+    });
+
+    // FINAL: PM sát tường trước (+Z) nhìn board (−Z) · Tester mặt cửa (+X)
+    // Author X = −FINAL (mirror); Z giữ nguyên
+    const pmX = -0.4;
+    // Ghế ~1.15 (sát tường trước) → bàn = ghế − 0.62
+    const pmZ = 1.15 - 0.62;
+    const teX = 0.7;
+    const teZ = 0.25;
+    // PM bàn dài (PC + máy chiếu); Tester bàn thường mặt cửa
+    addDesk(pmX, pmZ, Math.PI, 1.4, 0.78);
+    addDesk(teX, teZ, Math.PI / 2, 0.95, 0.65);
+
+    const addMonitor = (x, z, rotY, code) => {
+      const mon = new THREE.Group();
+      mon.position.set(x, DESK_H, z);
+      mon.rotation.y = rotY;
+      const W = 0.48;
+      const H = 0.28;
+      const yc = 0.12 + H / 2;
+      const than = mesh(new THREE.BoxGeometry(W, H, 0.018), matAlu);
+      than.position.y = yc;
+      mon.add(than);
+      const glass = mesh(
+        new THREE.PlaneGeometry(W - 0.016, H - 0.016),
         new THREE.MeshStandardMaterial({
           map: code.tex,
           emissive: 0x0a2030,
@@ -1566,1043 +1974,195 @@ export async function initWebglRipple() {
         }),
         false,
       );
-      screen.position.set(x, 0.98, -0.115);
-      screen.rotation.y = rot;
-      g.add(screen);
-    });
-
-    // Keyboard + mouse
-    const kb = mesh(new RoundedBoxGeometry(0.42, 0.03, 0.16, 1, 0.01), matInk);
-    kb.position.set(0.05, 0.68, 0.18);
-    g.add(kb);
-    const pad = mesh(
-      new RoundedBoxGeometry(0.22, 0.01, 0.18, 1, 0.005),
-      matNavy,
-      false,
-    );
-    pad.position.set(0.45, 0.67, 0.2);
-    g.add(pad);
-    const mousePad = mesh(
-      new THREE.CylinderGeometry(0.035, 0.035, 0.025, 12),
-      matCyan,
-      false,
-    );
-    mousePad.position.set(0.45, 0.69, 0.2);
-    g.add(mousePad);
-
-    // PC tower under desk
-    const tower = mesh(
-      new RoundedBoxGeometry(0.28, 0.45, 0.4, 2, 0.02),
-      matInk,
-    );
-    tower.position.set(0.85, 0.3, 0.15);
-    g.add(tower);
-    const towerLed = mesh(
-      new THREE.BoxGeometry(0.04, 0.04, 0.02),
-      matGlow,
-      false,
-    );
-    towerLed.position.set(0.72, 0.42, 0.15);
-    g.add(towerLed);
-
-    // Office chair
-    addOfficeChair(g, 0.05, 0, 0.75);
-
-    // Floor accent ring (like Journey yellow ring → brand gold)
-    const ring = mesh(
-      new THREE.TorusGeometry(0.55, 0.025, 8, 48),
-      matGold,
-      false,
-    );
-    ring.rotation.x = Math.PI / 2;
-    ring.position.set(0.1, 0.06, 0.55);
-    g.add(ring);
-
-    // Side bench + FDM 3D printer (readable silhouette)
-    const px = -0.95;
-    const pz = 0.15;
-    const sideTable = mesh(
-      new RoundedBoxGeometry(0.58, 0.06, 0.48, 2, 0.02),
-      matWhite,
-    );
-    sideTable.position.set(px, 0.45, pz);
-    g.add(sideTable);
-    [
-      [-0.18, -0.14],
-      [0.18, -0.14],
-      [-0.18, 0.14],
-      [0.18, 0.14],
-    ].forEach(([dx, dz]) => {
-      const leg = mesh(
-        new THREE.CylinderGeometry(0.025, 0.028, 0.4, 8),
-        matInk,
-      );
-      leg.position.set(px + dx, 0.23, pz + dz);
-      g.add(leg);
-    });
-
-    const matFilament = makeMatte(0xe85a2a, 0.35);
-    // No transmission — MeshPhysical transmission pass trips ANGLE/Metal
-    // feedback-loop warnings under Next.js (same look via opacity).
-    const matGlass = new THREE.MeshPhysicalMaterial({
-      color: 0xc8d8ea,
-      metalness: 0.05,
-      roughness: 0.12,
-      transparent: true,
-      opacity: 0.22,
-    });
-    const printer = new THREE.Group();
-    printer.position.set(px, 0.48, pz);
-    g.add(printer);
-
-    // Base + build plate
-    const pBase = mesh(
-      new RoundedBoxGeometry(0.42, 0.08, 0.4, 2, 0.02),
-      matInk,
-    );
-    pBase.position.y = 0.04;
-    printer.add(pBase);
-    const plate = mesh(new THREE.BoxGeometry(0.3, 0.012, 0.28), matNavy, false);
-    plate.position.set(0, 0.1, 0);
-    printer.add(plate);
-
-    // Vertical frame posts + top rail
-    [
-      [-0.18, -0.16],
-      [0.18, -0.16],
-      [-0.18, 0.16],
-      [0.18, 0.16],
-    ].forEach(([dx, dz]) => {
-      const post = mesh(
-        new THREE.BoxGeometry(0.035, 0.48, 0.035),
-        matWhite,
+      glass.position.set(0, yc, -0.011);
+      glass.rotation.y = Math.PI;
+      mon.add(glass);
+      const de = mesh(
+        new THREE.BoxGeometry(0.16, 0.008, 0.12),
+        matAlu,
         false,
       );
-      post.position.set(dx, 0.32, dz);
-      printer.add(post);
-    });
-    const topRail = mesh(
-      new THREE.BoxGeometry(0.4, 0.04, 0.36),
-      matWhite,
-      false,
-    );
-    topRail.position.y = 0.56;
-    printer.add(topRail);
+      de.position.set(0, 0.004, 0.03);
+      mon.add(de);
+      g.add(mon);
+    };
 
-    // Glass-ish side panels (open front)
-    [
-      [-0.2, 0],
-      [0.2, 0],
-    ].forEach(([dx]) => {
-      const pane = mesh(
-        new THREE.BoxGeometry(0.01, 0.38, 0.3),
-        matGlass,
-        false,
-      );
-      pane.position.set(dx, 0.3, 0);
-      printer.add(pane);
-    });
-    const rearPane = mesh(
-      new THREE.BoxGeometry(0.36, 0.38, 0.01),
-      matGlass,
-      false,
-    );
-    rearPane.position.set(0, 0.3, -0.18);
-    printer.add(rearPane);
+    const pmCode = codeScreenState(2.4);
+    const testCode = codeScreenState(4.2);
+    paintCodeScreen(pmCode, 0);
+    paintCodeScreen(testCode, 0);
+    // PM: màn đúng giữa bàn (khớp ghế/NV FINAL x=0.4 sau mirror)
+    // rotY=π: authorX = pmX - dx → dx=0 giữ đồng trục với PM
+    {
+      const m = wOff(pmX, pmZ, Math.PI, 0, 0.16);
+      addMonitor(m.x, m.z, Math.PI, pmCode);
+    }
+    // Tester: màn mặt về ghế (local −Z = thế giới −X khi rot π/2)
+    {
+      const m = wOff(teX, teZ, Math.PI / 2, 0, 0.12);
+      addMonitor(m.x, m.z, Math.PI / 2, testCode);
+    }
 
-    // Gantry + extruder head
-    const gantry = mesh(
-      new THREE.BoxGeometry(0.34, 0.03, 0.03),
-      matCyan,
-      false,
-    );
-    gantry.position.set(0, 0.34, 0.02);
-    printer.add(gantry);
-    const head = mesh(
-      new RoundedBoxGeometry(0.07, 0.1, 0.07, 2, 0.01),
-      matInk,
-      false,
-    );
-    head.position.set(0.04, 0.28, 0.02);
-    printer.add(head);
-    const nozzle = mesh(new THREE.ConeGeometry(0.018, 0.04, 8), matGold, false);
-    nozzle.position.set(0.04, 0.21, 0.02);
-    printer.add(nozzle);
-
-    // Mid-print object (small orange vehicle)
-    const printObj = new THREE.Group();
-    printObj.position.set(-0.02, 0.14, 0.02);
-    printer.add(printObj);
-    const body = mesh(
-      new RoundedBoxGeometry(0.12, 0.045, 0.07, 2, 0.01),
-      matFilament,
-      false,
-    );
-    body.position.y = 0.022;
-    printObj.add(body);
-    const cabin = mesh(
-      new RoundedBoxGeometry(0.06, 0.04, 0.06, 2, 0.01),
-      matFilament,
-      false,
-    );
-    cabin.position.set(-0.01, 0.055, 0);
-    printObj.add(cabin);
-    [-0.04, 0.04].forEach((wx) => {
-      [-0.028, 0.028].forEach((wz) => {
-        const wh = mesh(
-          new THREE.CylinderGeometry(0.015, 0.015, 0.012, 10),
-          matInk,
-          false,
-        );
-        wh.rotation.z = Math.PI / 2;
-        wh.position.set(wx, 0.012, wz);
-        printObj.add(wh);
+    // Trái bàn PM: khay hồ sơ hồng + nhãn Complete rõ
+    {
+      const trayPos = wOff(pmX, pmZ, Math.PI, -0.48, 0.02);
+      const tray = new THREE.Group();
+      tray.position.set(trayPos.x, DESK_H, trayPos.z);
+      tray.rotation.y = Math.PI;
+      // Cùng tông xanh Complete
+      const trayMat = new THREE.MeshStandardMaterial({
+        color: 0x065f32,
+        roughness: 0.5,
+        metalness: 0.1,
       });
-    });
-
-    // Filament spool on top
-    const spool = mesh(
-      new THREE.CylinderGeometry(0.08, 0.08, 0.06, 20),
-      matFilament,
-      false,
-    );
-    spool.rotation.z = Math.PI / 2;
-    spool.position.set(0, 0.66, 0);
-    printer.add(spool);
-    const spoolCore = mesh(
-      new THREE.CylinderGeometry(0.025, 0.025, 0.065, 12),
-      matInk,
-      false,
-    );
-    spoolCore.rotation.z = Math.PI / 2;
-    spoolCore.position.set(0, 0.66, 0);
-    printer.add(spoolCore);
-    const spoolMount = mesh(
-      new THREE.BoxGeometry(0.04, 0.08, 0.04),
-      matWhite,
-      false,
-    );
-    spoolMount.position.set(0, 0.6, 0);
-    printer.add(spoolMount);
-
-    // Status LED strip on front base
-    const led = mesh(new THREE.BoxGeometry(0.22, 0.015, 0.01), matGlow, false);
-    led.position.set(0, 0.06, 0.21);
-    printer.add(led);
-
-    return g;
-  }
-
-  function processBoardTex() {
-    return canvasTex(1024, 420, (ctx, w, h) => {
-      const bg = ctx.createLinearGradient(0, 0, w, h);
-      bg.addColorStop(0, "#0b1220");
-      bg.addColorStop(1, "#19314a");
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, w, h);
-      ctx.strokeStyle = "rgba(231,206,147,0.4)";
-      ctx.lineWidth = 5;
-      ctx.strokeRect(24, 24, w - 48, h - 48);
-      ctx.fillStyle = "rgba(42,168,224,0.9)";
-      ctx.font = "700 26px Manrope, system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("CÁCH CHÚNG TÔI LÀM VIỆC", w / 2, 100);
-      ctx.fillStyle = "#e7ce93";
-      ctx.font = "800 56px Manrope, system-ui, sans-serif";
-      ctx.fillText("Quy Trình 4 Bước", w / 2, 175);
-      ctx.fillStyle = "rgba(243,244,247,0.55)";
-      ctx.font = "600 22px Manrope, system-ui, sans-serif";
-      ctx.fillText("Khảo sát → Phát triển → Kiểm thử → Bàn giao", w / 2, 270);
-    });
-  }
-
-  function processStepTex(num, title, accent) {
-    return canvasTex(256, 96, (ctx, w, h) => {
-      ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = "rgba(11,18,32,0.88)";
-      ctx.fillRect(6, 10, w - 12, h - 20);
-      ctx.fillStyle = accent;
-      ctx.fillRect(6, 10, 8, h - 20);
-      ctx.font = "800 28px Manrope, system-ui, sans-serif";
-      ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
-      ctx.fillText(num, 28, h / 2);
-      ctx.fillStyle = "#f3f4f7";
-      ctx.font = "700 24px Manrope, system-ui, sans-serif";
-      ctx.fillText(title, 72, h / 2);
-    });
-  }
-
-  /**
-   * Floor 04 — wall timeline (C) + floor pipeline stations (A).
-   * Odd floor mirrored: author +X→−X → screen LTR.
-   */
-  function propsProcess() {
-    const g = new THREE.Group();
-    const wallZ = -ROOM_D / 2 + 0.09;
-    const matGlowGold = makeGlow(0xe7ce93, 0xa68040, 1.4);
-    const matGlowCyan = makeGlow(0x2aa8e0, 0x2aa8e0, 1.2);
-    const steps = [
-      { num: "01", title: "KHẢO SÁT", accent: "#2aa8e0", glow: matGlowCyan },
-      { num: "02", title: "PHÁT TRIỂN", accent: "#e7ce93", glow: matGlowGold },
-      { num: "03", title: "KIỂM THỬ", accent: "#2aa8e0", glow: matGlowCyan },
-      { num: "04", title: "BÀN GIAO", accent: "#a68040", glow: matGlowGold },
-    ];
-    // Authored right→left so mirror on odd floor reads LTR
-    const xs = [0.95, 0.32, -0.32, -0.95]; // wall timeline (even)
-    // Floor stations fill room in a U: front-R → back → front-L
-    const stationPts = [
-      { x: 1.05, z: 0.75 }, // 01 camera — front right
-      { x: 0.4, z: -0.5 }, // 02 laptop — back mid-right
-      { x: -0.4, z: -0.5 }, // 03 AI — back mid-left
-      { x: -1.05, z: 0.75 }, // 04 mailbox — front left
-    ];
-    const nodeY = 1.12;
-    const packetY = 0.38;
-    const nodes = [];
-    const stOffZ = -0.42; // machine sits behind its packet pad (toward wall)
-
-    // --- Wall: board + timeline ---
-    const frame = mesh(
-      new RoundedBoxGeometry(2.15, 0.85, 0.06, 2, 0.03),
-      matInk,
-      false,
-      true,
-    );
-    frame.position.set(0.05, 1.78, wallZ);
-    g.add(frame);
-    const board = mesh(
-      new THREE.PlaneGeometry(2.0, 0.72),
-      new THREE.MeshPhysicalMaterial({
-        map: processBoardTex(),
-        roughness: 0.55,
-        metalness: 0.04,
-        clearcoat: 0.12,
-        polygonOffset: true,
-        polygonOffsetFactor: -1,
-        polygonOffsetUnits: -1,
-      }),
-      false,
-      false,
-    );
-    board.position.set(0.05, 1.78, wallZ + 0.04);
-    g.add(board);
-
-    const rail = mesh(
-      new RoundedBoxGeometry(2.05, 0.035, 0.04, 2, 0.01),
-      matWhite,
-      false,
-    );
-    rail.position.set(0, nodeY, wallZ + 0.08);
-    g.add(rail);
-
-    steps.forEach((s, i) => {
-      const x = xs[i];
-      const node = new THREE.Group();
-      node.position.set(x, nodeY, wallZ + 0.1);
-      g.add(node);
-      const disc = mesh(
-        new THREE.CylinderGeometry(0.09, 0.09, 0.04, 20),
-        matInk,
-        false,
+      const tw = 0.28;
+      const td = 0.34;
+      const th = 0.06;
+      const wall = 0.018;
+      // Đáy khay
+      tray.add(
+        (() => {
+          const base = mesh(
+            new THREE.BoxGeometry(tw, 0.012, td),
+            trayMat,
+            false,
+          );
+          base.position.y = 0.006;
+          return base;
+        })(),
       );
-      disc.rotation.x = Math.PI / 2;
-      node.add(disc);
-      const core = mesh(
-        new THREE.SphereGeometry(0.055, 14, 14),
-        s.glow.clone(),
-        false,
-      );
-      node.add(core);
-      const ring = mesh(
-        new THREE.TorusGeometry(0.12, 0.012, 8, 24),
-        matWhite,
-        false,
-      );
-      ring.rotation.x = Math.PI / 2;
-      node.add(ring);
-      if (i < steps.length - 1) {
-        const x1 = xs[i + 1];
-        const beam = mesh(
-          new RoundedBoxGeometry(
-            Math.abs(x1 - x) - 0.2,
-            0.018,
-            0.018,
-            1,
-            0.006,
-          ),
-          matGold,
+      // 4 thành khay
+      [
+        { w: tw, d: wall, x: 0, z: td / 2 - wall / 2 },
+        { w: tw, d: wall, x: 0, z: -(td / 2 - wall / 2) },
+        { w: wall, d: td - wall * 2, x: tw / 2 - wall / 2, z: 0 },
+        { w: wall, d: td - wall * 2, x: -(tw / 2 - wall / 2), z: 0 },
+      ].forEach((s) => {
+        const side = mesh(
+          new THREE.BoxGeometry(s.w, th, s.d),
+          trayMat,
           false,
         );
-        beam.position.set((x + x1) / 2, nodeY, wallZ + 0.1);
-        g.add(beam);
+        side.position.set(s.x, 0.012 + th / 2, s.z);
+        tray.add(side);
+      });
+
+      // Hồ sơ hồng trong khay
+      const paperTex = canvasTex(128, 160, (ctx, cw, ch) => {
+        ctx.fillStyle = "#fce4ec";
+        ctx.fillRect(0, 0, cw, ch);
+        ctx.fillStyle = "rgba(136,14,79,0.25)";
+        for (let i = 0; i < 7; i++) {
+          ctx.fillRect(10, 20 + i * 18, cw - 28, 2);
+        }
+      });
+      const paperMat = new THREE.MeshStandardMaterial({
+        map: paperTex,
+        roughness: 0.88,
+      });
+      for (let i = 0; i < 5; i++) {
+        const sheet = mesh(
+          new THREE.BoxGeometry(0.2, 0.008, 0.26),
+          paperMat,
+          false,
+        );
+        sheet.position.set(
+          (i % 2) * 0.01 - 0.005,
+          0.016 + i * 0.01,
+          0.01,
+        );
+        sheet.rotation.y = (i - 2) * 0.03;
+        tray.add(sheet);
       }
-      nodes.push({ core: core.material, ring, pad: null, glow: null });
-    });
 
-    const traveler = mesh(
-      new THREE.SphereGeometry(0.045, 12, 12),
-      matGlowGold.clone(),
-      false,
-    );
-    traveler.position.set(xs[0], nodeY + 0.12, wallZ + 0.14);
-    g.add(traveler);
-
-    // --- Floor: pipeline stations fill room (U path) ---
-    function addStepTag(parent, step, y = 1.05, z = 0.22) {
-      const tag = mesh(
-        new THREE.PlaneGeometry(0.62, 0.2),
-        new THREE.MeshBasicMaterial({
-          map: processStepTex(step.num, step.title, step.accent),
-          transparent: true,
-          depthWrite: false,
+      // Nhãn khay mặt trước (hướng người ngồi / local −Z) — chữ Complete lớn
+      const labelTex = canvasTex(512, 128, (ctx, cw, ch) => {
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, cw, ch);
+        ctx.strokeStyle = "#065f32";
+        ctx.lineWidth = 8;
+        ctx.strokeRect(6, 6, cw - 12, ch - 12);
+        ctx.fillStyle = "#065f32";
+        ctx.font = "800 72px Manrope, system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Complete", cw / 2, ch / 2 + 2);
+      });
+      const label = mesh(
+        new THREE.PlaneGeometry(0.26, 0.065),
+        new THREE.MeshStandardMaterial({
+          map: labelTex,
+          roughness: 0.45,
+          metalness: 0.05,
+          emissive: 0x06381c,
+          emissiveIntensity: 0.15,
         }),
         false,
-        false,
       );
-      tag.position.set(0, y, z);
-      tag.userData.billboard = true;
-      parent.add(tag);
-      return tag;
+      // Thành phía người ngồi = local −Z
+      label.position.set(0, 0.012 + th * 0.55, -(td / 2) - 0.002);
+      label.rotation.y = Math.PI;
+      tray.add(label);
+
+      g.add(tray);
     }
 
-    function addStationPad(parent, mat, zLocal) {
-      const ring = mesh(
-        new THREE.TorusGeometry(0.13, 0.014, 8, 24),
-        matWhite,
-        false,
-      );
-      ring.rotation.x = Math.PI / 2;
-      ring.position.set(0, 0.07, zLocal);
-      parent.add(ring);
-      const pad = mesh(
-        new THREE.CylinderGeometry(0.11, 0.11, 0.025, 20),
-        mat,
-        false,
-      );
-      pad.position.set(0, 0.075, zLocal);
-      parent.add(pad);
-      return pad;
+    // Máy chiếu lệch phải bàn PM (không chiếm chỗ màn)
+    const projector = new THREE.Group();
+    projector.name = "shipProjector";
+    {
+      const p = wOff(pmX, pmZ, Math.PI, 0.48, 0.1);
+      projector.position.set(p.x, DESK_H + 0.08, p.z);
     }
-
-    // 01 DSLR on tripod — front right
-    const flashMat = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
+    projector.rotation.order = "YXZ";
+    const projBody = mesh(
+      new RoundedBoxGeometry(0.34, 0.11, 0.26, 2, 0.02),
+      matInk,
+    );
+    projector.add(projBody);
+    const projLens = mesh(
+      new THREE.CylinderGeometry(0.05, 0.062, 0.07, 12),
+      matCyan,
+    );
+    projLens.rotation.x = Math.PI / 2;
+    projLens.position.set(0, 0.01, -0.14);
+    projector.add(projLens);
+    const lensGlow = mesh(
+      new THREE.CircleGeometry(0.045, 16),
+      makeGlow(0x9ad4f0, 0x2aa8e0, 1.3),
+      false,
+    );
+    lensGlow.position.set(0, 0.01, -0.18);
+    projector.add(lensGlow);
+    const beamMat = new THREE.MeshBasicMaterial({
+      color: 0x9ad4f0,
       transparent: true,
-      opacity: 0,
+      opacity: 0.16,
       depthWrite: false,
       side: THREE.DoubleSide,
     });
-    {
-      const pt = stationPts[0];
-      const st = new THREE.Group();
-      st.position.set(pt.x, 0, pt.z + stOffZ);
-      g.add(st);
-
-      // Tripod
-      const hub = mesh(
-        new THREE.CylinderGeometry(0.045, 0.055, 0.06, 12),
-        matInk,
-      );
-      hub.position.y = 0.32;
-      st.add(hub);
-      [-0.55, 0.55, Math.PI].forEach((ang, i) => {
-        const a = typeof ang === "number" && i < 2 ? ang : 0;
-        const leg = mesh(
-          new THREE.CylinderGeometry(0.016, 0.022, 0.42, 8),
-          matInk,
-          false,
-        );
-        const lx = Math.sin(a) * 0.14;
-        const lz = Math.cos(a) * 0.12 + (i === 2 ? -0.14 : 0.02);
-        leg.position.set(i === 2 ? 0 : lx, 0.18, i === 2 ? -0.12 : lz * 0.4);
-        leg.rotation.z = i === 2 ? 0.35 : i === 0 ? 0.45 : -0.45;
-        leg.rotation.x = i === 2 ? 0.4 : 0.15;
-        st.add(leg);
-      });
-      // Cleaner tripod legs
-      [
-        [0.16, 0.14],
-        [-0.16, 0.14],
-        [0, -0.16],
-      ].forEach(([lx, lz], i) => {
-        const leg = mesh(
-          new RoundedBoxGeometry(0.03, 0.38, 0.03, 1, 0.008),
-          matInk,
-          false,
-        );
-        leg.position.set(lx * 0.5, 0.2, lz * 0.5);
-        leg.lookAt(lx, 0.02, lz);
-        // use tilt instead of lookAt for stability
-        leg.rotation.set(
-          lz > 0 ? 0.35 : -0.35,
-          0,
-          lx > 0 ? -0.35 : lx < 0 ? 0.35 : 0,
-        );
-        leg.position.set(lx * 0.55, 0.18, lz * 0.55);
-        st.add(leg);
-        const foot = mesh(
-          new THREE.SphereGeometry(0.025, 10, 10),
-          matGold,
-          false,
-        );
-        foot.position.set(lx, 0.025, lz);
-        st.add(foot);
-      });
-      // Remove crude first legs (over-added) — rebuild clean: clear children after hub only
-      // ponytail: rebuild tripod clean without double legs
-      while (st.children.length) st.remove(st.children[0]);
-
-      const basePlate = mesh(
-        new THREE.CylinderGeometry(0.12, 0.14, 0.04, 20),
-        matInk,
-      );
-      basePlate.position.y = 0.04;
-      st.add(basePlate);
-      const column = mesh(
-        new THREE.CylinderGeometry(0.035, 0.045, 0.36, 14),
-        matWhite,
-      );
-      column.position.y = 0.24;
-      st.add(column);
-      [
-        [0.13, 0.12],
-        [-0.13, 0.12],
-        [0, -0.14],
-      ].forEach(([lx, lz]) => {
-        const leg = mesh(
-          new RoundedBoxGeometry(0.028, 0.4, 0.028, 1, 0.008),
-          matInk,
-          false,
-        );
-        leg.position.set(lx * 0.45, 0.2, lz * 0.45);
-        leg.rotation.z = -lx * 2.2;
-        leg.rotation.x = lz * 1.8;
-        st.add(leg);
-        const foot = mesh(
-          new THREE.SphereGeometry(0.022, 10, 10),
-          matGold,
-          false,
-        );
-        foot.position.set(lx, 0.02, lz);
-        st.add(foot);
-      });
-      const headMount = mesh(
-        new THREE.CylinderGeometry(0.05, 0.05, 0.05, 12),
-        matInk,
-        false,
-      );
-      headMount.position.y = 0.44;
-      st.add(headMount);
-
-      // Camera body
-      const body = mesh(
-        new RoundedBoxGeometry(0.34, 0.22, 0.2, 4, 0.035),
-        matInk,
-      );
-      body.position.y = 0.58;
-      st.add(body);
-      const topPlate = mesh(
-        new RoundedBoxGeometry(0.28, 0.04, 0.16, 2, 0.012),
-        matWhite,
-        false,
-      );
-      topPlate.position.set(0, 0.7, 0);
-      st.add(topPlate);
-      const grip = mesh(
-        new RoundedBoxGeometry(0.1, 0.18, 0.16, 3, 0.025),
-        matNavy,
-        false,
-      );
-      grip.position.set(0.18, 0.54, 0);
-      st.add(grip);
-      const accent = mesh(
-        new THREE.BoxGeometry(0.02, 0.14, 0.18),
-        matGold,
-        false,
-      );
-      accent.position.set(-0.16, 0.58, 0);
-      st.add(accent);
-      // Viewfinder
-      const vf = mesh(
-        new RoundedBoxGeometry(0.1, 0.08, 0.08, 2, 0.015),
-        matWhite,
-        false,
-      );
-      vf.position.set(0, 0.72, -0.06);
-      st.add(vf);
-      // Lens barrel (multi ring)
-      const barrel = mesh(
-        new THREE.CylinderGeometry(0.08, 0.09, 0.16, 20),
-        matWhite,
-        false,
-      );
-      barrel.rotation.x = Math.PI / 2;
-      barrel.position.set(0, 0.56, 0.16);
-      st.add(barrel);
-      const ring1 = mesh(
-        new THREE.TorusGeometry(0.085, 0.012, 8, 24),
-        matGold,
-        false,
-      );
-      ring1.position.set(0, 0.56, 0.2);
-      st.add(ring1);
-      const ring2 = mesh(
-        new THREE.TorusGeometry(0.078, 0.01, 8, 24),
-        matInk,
-        false,
-      );
-      ring2.position.set(0, 0.56, 0.24);
-      st.add(ring2);
-      const glass = mesh(
-        new THREE.CircleGeometry(0.065, 24),
-        matGlowCyan.clone(),
-        false,
-      );
-      glass.position.set(0, 0.56, 0.245);
-      st.add(glass);
-      nodes[0].glow = glass.material;
-      // Hot-shoe flash
-      const flashBody = mesh(
-        new RoundedBoxGeometry(0.12, 0.08, 0.1, 2, 0.02),
-        matWhite,
-        false,
-      );
-      flashBody.position.set(0, 0.78, 0.02);
-      st.add(flashBody);
-      const flash = mesh(
-        new THREE.CircleGeometry(0.2, 24),
-        flashMat,
-        false,
-        false,
-      );
-      flash.position.set(0, 0.56, 0.32);
-      st.add(flash);
-
-      nodes[0].pad = addStationPad(st, matCyan, -stOffZ);
-      addStepTag(st, steps[0], 1.05);
-      nodes[0].fx = { flash: flashMat };
-    }
-
-    // 02 Laptop workstation — back mid-right
-    const laptopCode = codeScreenState(2);
-    {
-      const pt = stationPts[1];
-      const st = new THREE.Group();
-      st.position.set(pt.x, 0, pt.z + stOffZ);
-      g.add(st);
-
-      const desk = mesh(
-        new RoundedBoxGeometry(0.58, 0.055, 0.4, 3, 0.03),
-        matWhite,
-      );
-      desk.position.y = 0.32;
-      st.add(desk);
-      const deskEdge = mesh(
-        new THREE.BoxGeometry(0.58, 0.02, 0.02),
-        matGold,
-        false,
-      );
-      deskEdge.position.set(0, 0.35, 0.2);
-      st.add(deskEdge);
-      [
-        [-0.22, 0.14],
-        [0.22, 0.14],
-        [-0.22, -0.14],
-        [0.22, -0.14],
-      ].forEach(([dx, dz]) => {
-        const leg = mesh(
-          new RoundedBoxGeometry(0.04, 0.3, 0.04, 1, 0.01),
-          matInk,
-        );
-        leg.position.set(dx, 0.15, dz);
-        st.add(leg);
-      });
-
-      // Laptop chassis
-      const base = mesh(
-        new RoundedBoxGeometry(0.4, 0.03, 0.28, 3, 0.012),
-        matInk,
-        false,
-      );
-      base.position.set(0, 0.36, 0.04);
-      st.add(base);
-      // Keyboard keys hint
-      for (let r = 0; r < 3; r++) {
-        for (let c = 0; c < 8; c++) {
-          const key = mesh(
-            new THREE.BoxGeometry(0.028, 0.008, 0.028),
-            c % 3 === 0 ? matGold : matNavy,
-            false,
-          );
-          key.position.set(-0.12 + c * 0.034, 0.38, -0.02 + r * 0.036);
-          st.add(key);
-        }
-      }
-      const track = mesh(
-        new RoundedBoxGeometry(0.1, 0.006, 0.06, 1, 0.004),
-        matWhite,
-        false,
-      );
-      track.position.set(0, 0.38, 0.1);
-      st.add(track);
-
-      const hinge = mesh(
-        new THREE.CylinderGeometry(0.012, 0.012, 0.38, 10),
-        matGold,
-        false,
-      );
-      hinge.rotation.z = Math.PI / 2;
-      hinge.position.set(0, 0.375, -0.1);
-      st.add(hinge);
-
-      const lid = mesh(
-        new RoundedBoxGeometry(0.4, 0.28, 0.025, 3, 0.012),
-        matWhite,
-        false,
-      );
-      lid.position.set(0, 0.52, -0.1);
-      lid.rotation.x = -0.42;
-      st.add(lid);
-      const bezel = mesh(
-        new RoundedBoxGeometry(0.36, 0.24, 0.01, 2, 0.008),
-        matInk,
-        false,
-      );
-      bezel.position.set(0, 0.52, -0.085);
-      bezel.rotation.x = -0.42;
-      st.add(bezel);
-      const screenMat = new THREE.MeshStandardMaterial({
-        map: laptopCode.tex,
-        emissive: 0x102030,
-        emissiveIntensity: 0.55,
-        roughness: 0.3,
-      });
-      const screen = mesh(
-        new THREE.PlaneGeometry(0.33, 0.21),
-        screenMat,
-        false,
-      );
-      screen.position.set(0, 0.52, -0.078);
-      screen.rotation.x = -0.42;
-      st.add(screen);
-      nodes[1].glow = screenMat;
-      const camDot = mesh(
-        new THREE.SphereGeometry(0.008, 8, 8),
-        matCyan,
-        false,
-      );
-      camDot.position.set(0, 0.64, -0.09);
-      st.add(camDot);
-      // Side mug / accent prop
-      const mug = mesh(
-        new THREE.CylinderGeometry(0.04, 0.035, 0.08, 12),
-        matAccent,
-        false,
-      );
-      mug.position.set(0.22, 0.4, -0.08);
-      st.add(mug);
-
-      nodes[1].pad = addStationPad(st, matGold, -stOffZ);
-      addStepTag(st, steps[1], 1.0);
-      nodes[1].fx = { code: laptopCode };
-    }
-
-    // 03 Arch scanner — back mid-left
-    const scanBeamMat = makeGlow(0x2aa8e0, 0x2aa8e0, 1.15);
-    scanBeamMat.transparent = true;
-    scanBeamMat.opacity = 0.4;
-    scanBeamMat.depthWrite = false;
-    const scanBeam = mesh(
-      new THREE.BoxGeometry(0.42, 0.025, 0.32),
-      scanBeamMat,
+    // Beam dài hơn — PM ngồi tường trước, board tường sau
+    const beam = mesh(
+      new THREE.ConeGeometry(0.72, 2.6, 4, 1, true),
+      beamMat,
       false,
       false,
     );
-    {
-      const pt = stationPts[2];
-      const st = new THREE.Group();
-      st.position.set(pt.x, 0, pt.z + stOffZ);
-      g.add(st);
+    beam.name = "shipBeam";
+    beam.rotation.x = Math.PI / 2;
+    beam.position.set(0, 0.02, -1.35);
+    projector.add(beam);
+    g.add(projector);
 
-      const floor = mesh(
-        new RoundedBoxGeometry(0.62, 0.06, 0.48, 3, 0.03),
-        matWhite,
-      );
-      floor.position.y = 0.08;
-      st.add(floor);
-      const groove = mesh(new THREE.BoxGeometry(0.2, 0.02, 0.4), matInk, false);
-      groove.position.set(0, 0.12, 0.05);
-      st.add(groove);
+    const aim = new THREE.Vector3(0.05, 1.65, wallZ + 0.04);
+    projector.lookAt(aim);
 
-      [-0.22, 0.22].forEach((dx) => {
-        const post = mesh(
-          new RoundedBoxGeometry(0.1, 0.85, 0.12, 3, 0.025),
-          matInk,
-        );
-        post.position.set(dx, 0.52, 0);
-        st.add(post);
-        const panel = mesh(
-          new RoundedBoxGeometry(0.02, 0.5, 0.08, 1, 0.008),
-          matCyan,
-          false,
-        );
-        panel.position.set(dx + (dx > 0 ? 0.06 : -0.06), 0.55, 0.02);
-        st.add(panel);
-        const led = mesh(
-          new THREE.SphereGeometry(0.025, 10, 10),
-          matGlowCyan.clone(),
-          false,
-        );
-        led.position.set(dx, 0.88, 0.07);
-        st.add(led);
-        if (dx > 0) nodes[2].glow = led.material;
-      });
-
-      const arch = mesh(
-        new RoundedBoxGeometry(0.58, 0.12, 0.14, 3, 0.03),
-        matWhite,
-      );
-      arch.position.set(0, 0.98, 0);
-      st.add(arch);
-      const archGold = mesh(
-        new THREE.BoxGeometry(0.5, 0.025, 0.02),
-        matGold,
-        false,
-      );
-      archGold.position.set(0, 0.98, 0.08);
-      st.add(archGold);
-      // Mini status screen on arch
-      const hud = mesh(
-        new THREE.PlaneGeometry(0.16, 0.06),
-        matGlowCyan.clone(),
-        false,
-      );
-      hud.position.set(0, 0.98, 0.09);
-      st.add(hud);
-
-      scanBeam.position.set(0, 0.5, 0.1);
-      st.add(scanBeam);
-
-      nodes[2].pad = addStationPad(st, matCyan, -stOffZ);
-      addStepTag(st, steps[2], 1.28);
-      nodes[2].fx = {
-        scanBeam,
-        scanMat: scanBeamMat,
-        beamY0: 0.3,
-        beamY1: 0.85,
-      };
-    }
-
-    // 04 Gift box on pedestal — front left
-    const giftLid = new THREE.Group();
-    const giftRibbonGlow = matGlowGold.clone();
-    {
-      const pt = stationPts[3];
-      const st = new THREE.Group();
-      st.position.set(pt.x, 0, pt.z + stOffZ);
-      g.add(st);
-
-      const plinth = mesh(
-        new RoundedBoxGeometry(0.42, 0.1, 0.42, 3, 0.03),
-        matInk,
-      );
-      plinth.position.y = 0.1;
-      st.add(plinth);
-      const plinthTop = mesh(
-        new THREE.CylinderGeometry(0.18, 0.2, 0.04, 20),
-        matWhite,
-        false,
-      );
-      plinthTop.position.y = 0.17;
-      st.add(plinthTop);
-
-      const body = mesh(
-        new RoundedBoxGeometry(0.36, 0.28, 0.36, 4, 0.04),
-        matAccent,
-      );
-      body.position.y = 0.34;
-      st.add(body);
-      // Wrap ribbons around body
-      const ribV = mesh(
-        new THREE.BoxGeometry(0.07, 0.3, 0.375),
-        matGold,
-        false,
-      );
-      ribV.position.set(0, 0.34, 0);
-      st.add(ribV);
-      const ribH = mesh(
-        new THREE.BoxGeometry(0.375, 0.07, 0.07),
-        giftRibbonGlow,
-        false,
-      );
-      ribH.position.set(0, 0.4, 0.155);
-      st.add(ribH);
-      const ribH2 = mesh(
-        new THREE.BoxGeometry(0.375, 0.07, 0.07),
-        matGold,
-        false,
-      );
-      ribH2.position.set(0, 0.4, -0.155);
-      st.add(ribH2);
-      nodes[3].glow = giftRibbonGlow;
-
-      // Lid hinged at back
-      giftLid.position.set(0, 0.48, -0.16);
-      giftLid.rotation.x = -0.7;
-      st.add(giftLid);
-      const lidBox = mesh(
-        new RoundedBoxGeometry(0.38, 0.07, 0.38, 3, 0.03),
-        matGold,
-        false,
-      );
-      lidBox.position.set(0, 0.02, 0.16);
-      giftLid.add(lidBox);
-      const lidLip = mesh(
-        new THREE.BoxGeometry(0.4, 0.02, 0.4),
-        matWhite,
-        false,
-      );
-      lidLip.position.set(0, -0.02, 0.16);
-      giftLid.add(lidLip);
-      // Bow: knot + 2 loops
-      const knot = mesh(
-        new THREE.SphereGeometry(0.04, 12, 12),
-        matGlowGold.clone(),
-        false,
-      );
-      knot.position.set(0, 0.08, 0.16);
-      giftLid.add(knot);
-      [-1, 1].forEach((side) => {
-        const loop = mesh(
-          new THREE.TorusGeometry(0.055, 0.016, 8, 16),
-          matGold,
-          false,
-        );
-        loop.position.set(side * 0.07, 0.1, 0.16);
-        loop.rotation.y = side * 0.6;
-        loop.rotation.z = side * 0.35;
-        giftLid.add(loop);
-      });
-      const tail = mesh(
-        new THREE.BoxGeometry(0.04, 0.02, 0.12),
-        matGold,
-        false,
-      );
-      tail.position.set(0.02, 0.05, 0.22);
-      tail.rotation.y = 0.3;
-      giftLid.add(tail);
-
-      // Small gift tag
-      const tagCard = mesh(new THREE.PlaneGeometry(0.1, 0.07), matWhite, false);
-      tagCard.position.set(0.14, 0.42, 0.2);
-      tagCard.rotation.z = -0.25;
-      st.add(tagCard);
-
-      nodes[3].pad = addStationPad(st, matAccent, -stOffZ);
-      addStepTag(st, steps[3], 1.12);
-      nodes[3].fx = {
-        lid: giftLid,
-        ribbon: giftRibbonGlow,
-        openX: -0.7,
-        shutX: 0.02,
-      };
-    }
-
-    // Packet — floating idea bulb (not a gift cake)
-    const packet = new THREE.Group();
-    {
-      const bulbGlow = makeGlow(0xe8f6ff, 0x2aa8e0, 1.35);
-      bulbGlow.transparent = true;
-      bulbGlow.opacity = 0.85;
-      bulbGlow.depthWrite = false;
-      // Glass bulb
-      const glass = mesh(
-        new THREE.SphereGeometry(0.085, 20, 16),
-        bulbGlow,
-        false,
-        false,
-      );
-      glass.position.y = 0.12;
-      glass.scale.set(1, 1.15, 1);
-      packet.add(glass);
-      // Inner filament glow
-      const core = mesh(
-        new THREE.SphereGeometry(0.035, 12, 10),
-        matGlowCyan.clone(),
-        false,
-      );
-      core.position.y = 0.12;
-      packet.add(core);
-      const filament = mesh(
-        new THREE.TorusGeometry(0.028, 0.006, 6, 14),
-        matGlowGold.clone(),
-        false,
-      );
-      filament.position.y = 0.12;
-      filament.rotation.x = Math.PI / 2;
-      packet.add(filament);
-      // Neck
-      const neck = mesh(
-        new THREE.CylinderGeometry(0.035, 0.048, 0.05, 12),
-        matWhite,
-        false,
-      );
-      neck.position.y = 0.035;
-      packet.add(neck);
-      // Screw base rings
-      const base = mesh(
-        new THREE.CylinderGeometry(0.048, 0.042, 0.055, 12),
-        matInk,
-        false,
-      );
-      base.position.y = -0.01;
-      packet.add(base);
-      [0.005, -0.012, -0.028].forEach((y) => {
-        const ring = mesh(
-          new THREE.TorusGeometry(0.046, 0.006, 6, 16),
-          matGold,
-          false,
-        );
-        ring.rotation.x = Math.PI / 2;
-        ring.position.y = y;
-        packet.add(ring);
-      });
-      const contact = mesh(
-        new THREE.SphereGeometry(0.02, 10, 8),
-        matGold,
-        false,
-      );
-      contact.position.y = -0.045;
-      contact.scale.set(1, 0.55, 1);
-      packet.add(contact);
-      // Idea spark rays (3 thin bars)
-      [0, 1, 2].forEach((i) => {
-        const ray = mesh(
-          new RoundedBoxGeometry(0.012, 0.06, 0.012, 1, 0.004),
-          matGlowGold.clone(),
-          false,
-        );
-        const ang = (i / 3) * Math.PI * 2;
-        ray.position.set(Math.cos(ang) * 0.11, 0.2, Math.sin(ang) * 0.11);
-        ray.rotation.z = Math.cos(ang) * 0.4;
-        ray.rotation.x = Math.sin(ang) * 0.4;
-        packet.add(ray);
-      });
-    }
-    packet.position.set(stationPts[0].x, packetY, stationPts[0].z);
-    g.add(packet);
-
-    g.userData.process = {
-      nodes,
-      traveler,
-      packet,
-      xs,
-      stationPts,
-      nodeY,
-      wallZ,
-      packetY,
-      codeScreens: [laptopCode],
+    g.userData.ship = {
+      boardMat,
+      beamMat,
+      procBoard,
+      codeScreens: [pmCode, testCode],
+      aim,
     };
     return g;
   }
@@ -2648,313 +2208,389 @@ export async function initWebglRipple() {
     });
   }
 
+  /** Logo AI Wall (port VP theAI) — SVG nội tuyến trang trí. */
+  const LOGO_AI = {
+    claude: '<g stroke="#D97757" stroke-width="1.35" stroke-linecap="round"><path d="M0.88 0.18L4.80 0.97"/><path d="M0.61 0.66L2.84 3.09"/><path d="M0.10 0.89L0.55 4.77"/><path d="M-0.44 0.78L-2.16 3.83"/><path d="M-0.82 0.37L-4.55 2.08"/><path d="M-0.88 -0.18L-4.21 -0.85"/><path d="M-0.61 -0.66L-3.18 -3.46"/><path d="M-0.10 -0.89L-0.47 -4.07"/><path d="M0.44 -0.78L2.41 -4.27"/><path d="M0.82 -0.37L4.00 -1.83"/></g>',
+    openai: '<circle r="5.4" fill="#111"/><g fill="none" stroke="#fff" stroke-width="1"><rect x="-1.1" y="-3.9" width="2.2" height="4.1" rx="1.1" transform="rotate(0)"/><rect x="-1.1" y="-3.9" width="2.2" height="4.1" rx="1.1" transform="rotate(60)"/><rect x="-1.1" y="-3.9" width="2.2" height="4.1" rx="1.1" transform="rotate(120)"/><rect x="-1.1" y="-3.9" width="2.2" height="4.1" rx="1.1" transform="rotate(180)"/><rect x="-1.1" y="-3.9" width="2.2" height="4.1" rx="1.1" transform="rotate(240)"/><rect x="-1.1" y="-3.9" width="2.2" height="4.1" rx="1.1" transform="rotate(300)"/></g>',
+    gemini: '<defs><linearGradient id="g" x1="-5" y1="5" x2="5" y2="-5" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1A73E8"/><stop offset=".55" stop-color="#8E75C9"/><stop offset="1" stop-color="#D96570"/></linearGradient></defs><path d="M0 -5.8C.55 -2.4 2.4 -.55 5.8 0C2.4 .55 .55 2.4 0 5.8C-.55 2.4 -2.4 .55 -5.8 0C-2.4 -.55 -.55 -2.4 0 -5.8Z" fill="url(#g)"/>',
+    grok: '<rect x="-5.6" y="-5.6" width="11.2" height="11.2" rx="2.6" fill="#0B0B0B"/><g fill="none" stroke="#fff" stroke-width="1.05" stroke-linecap="round"><path d="M-3.3 3.7L3.9 -3.9"/><path d="M1.6 -3.2A3.5 3.5 0 0 0 -3 1.3"/><path d="M3.3 -.9A3.5 3.5 0 0 1 -1.2 3.4"/></g>',
+    deepseek: '<path d="M-5.3 .5C-5.3 -2.3 -2.7 -3.7 .1 -3.3C2.2 -3 3.4 -1.9 3.9 -.7L5.5 -2.5C5.8 -1.1 5.4 .4 4.5 1.1C4.2 3.2 2 4.5 -.6 4.4C-3.4 4.3 -5.3 2.8 -5.3 .5Z" fill="#4D6BFE"/><circle cx="-2.7" cy="-.7" r=".6" fill="#fff"/><path d="M-1.5 1.6Q.8 2.6 3 1.4" fill="none" stroke="#fff" stroke-width=".55" stroke-linecap="round"/>',
+    meta: '<defs><linearGradient id="g" x1="-5" y1="4" x2="5" y2="-4" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0064E0"/><stop offset=".5" stop-color="#7B3FE4"/><stop offset="1" stop-color="#E23EA0"/></linearGradient></defs><circle r="4.1" fill="none" stroke="url(#g)" stroke-width="2.2"/>',
+  };
+
+  /** Ô logo AI Wall: nền trắng bo góc + icon + tên. */
+  function texAiLogo(key, label) {
+    const c = document.createElement("canvas");
+    c.width = 256;
+    c.height = 300;
+    const g = c.getContext("2d");
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 8;
+    const paintBg = () => {
+      g.clearRect(0, 0, 256, 300);
+      g.fillStyle = "#FFFFFF";
+      g.beginPath();
+      if (g.roundRect) g.roundRect(6, 6, 244, 288, 26);
+      else g.rect(6, 6, 244, 288);
+      g.fill();
+      g.fillStyle = "#1B262B";
+      g.font = '700 32px Manrope, system-ui, sans-serif';
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.fillText(label, 128, 254);
+    };
+    paintBg();
+    const svg = LOGO_AI[key];
+    if (svg) {
+      const img = new Image();
+      img.onload = () => {
+        paintBg();
+        g.drawImage(img, 50, 30, 156, 156);
+        t.needsUpdate = true;
+      };
+      img.src =
+        "data:image/svg+xml;charset=utf-8," +
+        encodeURIComponent(
+          `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6.5 -6.5 13 13" width="312" height="312">${svg}</svg>`,
+        );
+    }
+    return t;
+  }
+
   /**
-   * Floor 05 — dispatch desk: send quote request into wall mailbox (journey end).
-   * Odd floor mirrored — author +X for LTR after flip.
+   * AI Wall sau lưng CEO — 6 logo (Claude, ChatGPT, Grok, DeepSeek, Gemini, Meta AI).
+   * Bố cục 3×2 kiểu VP AI Expo, scale vừa phòng Contact.
+   */
+  function propsAiWall(parent) {
+    const wallZ = -ROOM_D / 2 + 0.1;
+    const items = [
+      ["claude", "Claude"],
+      ["openai", "ChatGPT"],
+      ["grok", "Grok"],
+      ["deepseek", "DeepSeek"],
+      ["gemini", "Gemini"],
+      ["meta", "Meta AI"],
+    ];
+    // Title strip
+    const titleTex = canvasTex(900, 90, (ctx, w, h) => {
+      ctx.fillStyle = "#15191E";
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = "#F5C200";
+      ctx.font = '800 42px Manrope, system-ui, sans-serif';
+      ctx.textBaseline = "middle";
+      ctx.fillText("AI WALL", 28, h / 2 + 2);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = '600 26px Manrope, system-ui, sans-serif';
+      ctx.fillText("Leading AI platforms", 220, h / 2 + 2);
+    });
+    const title = mesh(
+      new THREE.PlaneGeometry(2.55, 0.26),
+      new THREE.MeshBasicMaterial({ map: titleTex }),
+      false,
+      false,
+    );
+    title.position.set(0, 2.22, wallZ);
+    parent.add(title);
+
+    const tw = 0.48;
+    const th = (tw * 300) / 256;
+    const gapX = 0.58;
+    const gapY = 0.64;
+    // Nâng cụm — hàng dưới (Gemini…) không bị CEO che
+    const baseY = 1.72;
+    items.forEach(([key, label], i) => {
+      const col = i % 3;
+      const row = (i / 3) | 0;
+      const card = mesh(
+        new THREE.PlaneGeometry(tw, th),
+        new THREE.MeshStandardMaterial({
+          map: texAiLogo(key, label),
+          transparent: true,
+          roughness: 0.45,
+          metalness: 0.02,
+        }),
+        false,
+        false,
+      );
+      card.position.set((col - 1) * gapX, baseY - row * gapY, wallZ);
+      parent.add(card);
+    });
+  }
+
+  /**
+   * Floor 05 — Contact: phòng riêng CEO kiểu mẫu VP.
+   * Bàn + Studio Display + decor · sofa dài + bàn trà · không board/email/kệ.
    */
   function propsContact() {
     const g = new THREE.Group();
-    const wallZ = -ROOM_D / 2 + 0.09;
-    const matGlowGold = makeGlow(0xe7ce93, 0xa68040, 1.45);
-    const matGlowCyan = makeGlow(0x2aa8e0, 0x2aa8e0, 1.15);
-
-    // Wall board
-    const frame = mesh(
-      new RoundedBoxGeometry(2.05, 0.85, 0.06, 2, 0.03),
-      matInk,
-      false,
-      true,
-    );
-    frame.position.set(0.05, 1.75, wallZ);
-    g.add(frame);
-    const board = mesh(
-      new THREE.PlaneGeometry(1.9, 0.72),
-      new THREE.MeshPhysicalMaterial({
-        map: contactBoardTex(),
-        roughness: 0.55,
-        metalness: 0.04,
-        clearcoat: 0.12,
-        polygonOffset: true,
-        polygonOffsetFactor: -1,
-        polygonOffsetUnits: -1,
-      }),
-      false,
-      false,
-    );
-    board.position.set(0.05, 1.75, wallZ + 0.04);
-    g.add(board);
-
-    // Dispatch desk (center-front)
-    const desk = mesh(
-      new RoundedBoxGeometry(1.35, 0.08, 0.58, 3, 0.04),
-      matWhite,
-    );
-    desk.position.set(0.05, 0.58, 0.2);
-    g.add(desk);
-    [
-      [-0.5, 0.18],
-      [0.5, 0.18],
-      [-0.5, -0.18],
-      [0.5, -0.18],
-    ].forEach(([x, z]) => {
-      const leg = mesh(
-        new RoundedBoxGeometry(0.05, 0.5, 0.05, 1, 0.01),
-        matInk,
-      );
-      leg.position.set(0.05 + x, 0.28, 0.2 + z);
-      g.add(leg);
+    // Tường sau CEO: AI Wall 6 logo (kiểu VP AI Expo)
+    propsAiWall(g);
+    const DESK_H = 0.5;
+    const matAlu = new THREE.MeshStandardMaterial({
+      color: 0xc3c8cc,
+      roughness: 0.35,
+      metalness: 0.45,
     });
-    const stripe = mesh(
-      new THREE.BoxGeometry(1.35, 0.025, 0.025),
-      matGold,
-      false,
-    );
-    stripe.position.set(0.05, 0.63, 0.48);
-    g.add(stripe);
+    const matTop = new THREE.MeshStandardMaterial({
+      color: 0xf4f4f1,
+      roughness: 0.55,
+      metalness: 0.05,
+    });
 
-    // Laptop with quote screen
-    const laptopBase = mesh(
-      new RoundedBoxGeometry(0.42, 0.025, 0.28, 2, 0.01),
-      matInk,
-      false,
-    );
-    laptopBase.position.set(-0.25, 0.64, 0.22);
-    g.add(laptopBase);
-    const lid = mesh(
-      new RoundedBoxGeometry(0.42, 0.28, 0.02, 2, 0.01),
-      matWhite,
-      false,
-    );
-    lid.position.set(-0.25, 0.8, 0.08);
-    lid.rotation.x = -0.4;
-    g.add(lid);
+    const deskX = 0;
+    const deskZ = -0.45;
+    const deskRot = 0;
+
+    // Bàn trắng VP banHienDai
+    {
+      const grp = new THREE.Group();
+      grp.position.set(deskX, 0, deskZ);
+      grp.rotation.y = deskRot;
+      const w = 1.2;
+      const d = 0.72;
+      const top = mesh(new THREE.BoxGeometry(w, 0.03, d), matTop);
+      top.position.set(0, DESK_H - 0.015, 0);
+      grp.add(top);
+      for (const s of [-1, 1]) {
+        const leg = mesh(
+          new THREE.BoxGeometry(0.035, DESK_H - 0.03, 0.05),
+          matAlu,
+        );
+        leg.position.set(s * (w / 2 - 0.08), (DESK_H - 0.03) / 2, 0);
+        grp.add(leg);
+        const foot = mesh(new THREE.BoxGeometry(0.04, 0.02, d - 0.1), matAlu);
+        foot.position.set(s * (w / 2 - 0.08), 0.01, 0);
+        grp.add(foot);
+      }
+      const rail = mesh(new THREE.BoxGeometry(w - 0.18, 0.025, 0.025), matAlu);
+      rail.position.set(0, DESK_H - 0.07, d / 2 - 0.07);
+      grp.add(rail);
+      // Bàn phím + chuột navy
+      const kb = mesh(new THREE.BoxGeometry(0.3, 0.01, 0.1), matNavy, false);
+      kb.position.set(0.05, DESK_H + 0.005, -0.17);
+      grp.add(kb);
+      const pad = mesh(new THREE.BoxGeometry(0.1, 0.005, 0.08), matNavy, false);
+      pad.position.set(-0.2, DESK_H + 0.0025, -0.17);
+      grp.add(pad);
+      g.add(grp);
+    }
+
+    // Studio Display — mặt kính về CEO (−Z)
+    const screenState = codeScreenState(5.1);
+    paintCodeScreen(screenState, 0);
     const screenMat = new THREE.MeshStandardMaterial({
-      map: contactScreenTex(),
-      emissive: 0x102030,
-      emissiveIntensity: 0.6,
+      map: screenState.tex,
+      emissive: 0x0a2030,
+      emissiveIntensity: 0.55,
       roughness: 0.35,
     });
-    const screen = mesh(new THREE.PlaneGeometry(0.36, 0.22), screenMat, false);
-    screen.position.set(-0.25, 0.8, 0.095);
-    screen.rotation.x = -0.4;
-    g.add(screen);
-
-    // Envelope stack on desk
-    [-0.02, 0.01, 0.04].forEach((dy, i) => {
-      const env = mesh(
-        new RoundedBoxGeometry(0.28, 0.02, 0.18, 1, 0.006),
-        i === 2 ? matGold : matWhite,
+    {
+      const mon = new THREE.Group();
+      mon.position.set(deskX + 0.08, DESK_H, deskZ + 0.14);
+      mon.rotation.y = deskRot;
+      const W = 0.54;
+      const H = 0.32;
+      const yc = 0.13 + H / 2;
+      const than = mesh(new THREE.BoxGeometry(W, H, 0.018), matAlu);
+      than.position.y = yc;
+      mon.add(than);
+      const glass = mesh(
+        new THREE.PlaneGeometry(W - 0.018, H - 0.018),
+        screenMat,
         false,
       );
-      env.position.set(0.35, 0.66 + dy, 0.28);
-      env.rotation.y = -0.15 + i * 0.08;
-      g.add(env);
-    });
-
-    // Guest chair — same office model as Labs
-    addOfficeChair(g, 0.05, 0, 0.85);
-
-    // Wall tower / outbox — mailbox body + clear radio mast + signal rings
-    const mailX = -0.95;
-    const mailZ = wallZ + 0.28;
-    const mailBox = new THREE.Group();
-    mailBox.position.set(mailX, 0, mailZ);
-    g.add(mailBox);
-
-    // Tower mast base
-    const post = mesh(
-      new THREE.CylinderGeometry(0.05, 0.065, 0.55, 14),
-      matInk,
-    );
-    post.position.y = 0.35;
-    mailBox.add(post);
-    const footing = mesh(
-      new THREE.CylinderGeometry(0.12, 0.14, 0.05, 14),
-      matWhite,
-      false,
-    );
-    footing.position.y = 0.04;
-    mailBox.add(footing);
-
-    // Mail cabinet (keeps dispatch read)
-    const box = mesh(
-      new RoundedBoxGeometry(0.42, 0.48, 0.32, 3, 0.04),
-      matNavy,
-    );
-    box.position.y = 0.85;
-    mailBox.add(box);
-    const door = mesh(
-      new RoundedBoxGeometry(0.34, 0.28, 0.04, 2, 0.015),
-      matWhite,
-      false,
-    );
-    door.position.set(0, 0.78, 0.16);
-    mailBox.add(door);
-    const handle = mesh(new THREE.SphereGeometry(0.02, 10, 8), matGold, false);
-    handle.position.set(0.12, 0.78, 0.19);
-    mailBox.add(handle);
-    const slot = mesh(new THREE.BoxGeometry(0.28, 0.035, 0.02), matInk, false);
-    slot.position.set(0, 1.02, 0.17);
-    mailBox.add(slot);
-    const flag = mesh(
-      new RoundedBoxGeometry(0.04, 0.14, 0.08, 1, 0.01),
-      matGold,
-      false,
-    );
-    flag.position.set(0.24, 1.05, 0.05);
-    flag.rotation.z = 0.4;
-    mailBox.add(flag);
-
-    // Antenna mast on tower roof — readable broadcast silhouette
-    const mast = mesh(
-      new THREE.CylinderGeometry(0.018, 0.028, 0.55, 10),
-      matInk,
-      false,
-    );
-    mast.position.y = 1.35;
-    mailBox.add(mast);
-    const mastJoint = mesh(
-      new THREE.CylinderGeometry(0.04, 0.04, 0.04, 12),
-      matGold,
-      false,
-    );
-    mastJoint.position.y = 1.1;
-    mailBox.add(mastJoint);
-    // Cross-arms (classic radio tower)
-    [1.22, 1.38, 1.52].forEach((y, i) => {
-      const arm = mesh(
-        new RoundedBoxGeometry(0.22 - i * 0.04, 0.012, 0.012, 1, 0.004),
-        matWhite,
+      glass.position.set(0, yc, -0.0105);
+      glass.rotation.y = Math.PI;
+      mon.add(glass);
+      const chan = mesh(
+        new THREE.BoxGeometry(0.11, 0.16, 0.014),
+        matAlu,
         false,
       );
-      arm.position.y = y;
-      mailBox.add(arm);
-      const armZ = mesh(
-        new RoundedBoxGeometry(0.012, 0.012, 0.18 - i * 0.03, 1, 0.004),
-        matWhite,
+      chan.position.set(0, 0.075, 0.035);
+      chan.rotation.x = 0.2;
+      mon.add(chan);
+      const de = mesh(
+        new THREE.BoxGeometry(0.17, 0.008, 0.14),
+        matAlu,
         false,
       );
-      armZ.position.y = y;
-      mailBox.add(armZ);
-    });
-    // Tip LED
-    const tip = mesh(
-      new THREE.SphereGeometry(0.035, 12, 10),
-      matGlowCyan.clone(),
-      false,
-    );
-    tip.position.y = 1.64;
-    mailBox.add(tip);
-    // Small dish — “receive signal” cue
-    const dish = mesh(
-      new THREE.SphereGeometry(0.11, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.55),
-      matCyan,
-      false,
-    );
-    dish.position.set(0.08, 1.28, 0.06);
-    dish.rotation.x = -0.55;
-    dish.rotation.y = -0.35;
-    mailBox.add(dish);
-    const feed = mesh(
-      new THREE.CylinderGeometry(0.01, 0.01, 0.08, 8),
-      matInk,
-      false,
-    );
-    feed.position.set(0.08, 1.34, 0.1);
-    feed.rotation.x = 0.6;
-    mailBox.add(feed);
+      de.position.set(0, 0.004, 0.03);
+      mon.add(de);
+      g.add(mon);
+    }
 
-    const badge24 = mesh(
-      new THREE.PlaneGeometry(0.36, 0.14),
-      new THREE.MeshBasicMaterial({
-        map: canvasTex(256, 96, (ctx, w, h) => {
-          ctx.clearRect(0, 0, w, h);
-          ctx.fillStyle = "rgba(11,18,32,0.88)";
-          ctx.fillRect(8, 12, w - 16, h - 24);
-          ctx.fillStyle = "#e7ce93";
-          ctx.font = "800 40px Manrope, system-ui, sans-serif";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText("EMAIL", w / 2, h / 2, w - 20);
+    // Decor bàn: nameplate + khay giấy + chậu nhỏ
+    {
+      const plate = mesh(
+        new THREE.BoxGeometry(0.26, 0.035, 0.1),
+        matInk,
+        false,
+      );
+      plate.position.set(deskX - 0.38, DESK_H + 0.02, deskZ - 0.08);
+      g.add(plate);
+      const tag = mesh(
+        new THREE.PlaneGeometry(0.24, 0.07),
+        new THREE.MeshBasicMaterial({
+          map: canvasTex(256, 72, (ctx, w, h) => {
+            ctx.fillStyle = "#19314a";
+            ctx.fillRect(0, 0, w, h);
+            ctx.fillStyle = "#e7ce93";
+            ctx.font = "800 26px Manrope, system-ui, sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("CEO", w / 2, h / 2 - 6);
+            ctx.fillStyle = "rgba(243,244,247,0.72)";
+            ctx.font = "600 13px Manrope, system-ui, sans-serif";
+            ctx.fillText("SoU Technology", w / 2, h / 2 + 14);
+          }),
         }),
-        transparent: true,
-        depthWrite: false,
-      }),
-      false,
-      false,
-    );
-    badge24.position.set(0, 0.55, 0.22);
-    badge24.userData.billboard = true;
-    mailBox.add(badge24);
-
-    // Expanding signal rings (horizontal WiFi waves around mast tip)
-    const signalRings = [0, 1, 2].map((i) => {
-      const ringMat = new THREE.MeshBasicMaterial({
-        color: 0x2aa8e0,
-        transparent: true,
-        opacity: 0.35,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-      });
-      const ring = mesh(
-        new THREE.TorusGeometry(0.12, 0.008, 8, 40),
-        ringMat,
         false,
         false,
       );
-      ring.rotation.x = Math.PI / 2;
-      ring.position.y = 1.64;
-      ring.userData.signalPhase = i / 3;
-      mailBox.add(ring);
-      return ring;
-    });
+      tag.position.set(deskX - 0.38, DESK_H + 0.04, deskZ - 0.02);
+      tag.rotation.x = -0.4;
+      g.add(tag);
 
-    // Flying sealed envelope (journey packet → quote request)
-    const flyer = new THREE.Group();
-    const envBody = mesh(
-      new RoundedBoxGeometry(0.22, 0.04, 0.14, 2, 0.01),
-      matGold,
-      false,
-    );
-    flyer.add(envBody);
-    const flapMesh = mesh(
-      new THREE.BoxGeometry(0.2, 0.01, 0.1),
-      matWhite,
-      false,
-    );
-    flapMesh.position.set(0, 0.025, -0.01);
-    flapMesh.rotation.x = 0.35;
-    flyer.add(flapMesh);
-    const stamp = mesh(
-      new THREE.BoxGeometry(0.045, 0.01, 0.04),
-      matCyan,
-      false,
-    );
-    stamp.position.set(0.06, 0.028, 0.03);
-    flyer.add(stamp);
-    const seal = mesh(
-      new THREE.SphereGeometry(0.025, 10, 8),
-      matGlowGold.clone(),
-      false,
-    );
-    seal.position.set(0, 0.03, 0);
-    flyer.add(seal);
-    const deskPos = new THREE.Vector3(0.35, 0.78, 0.28);
-    const mailPos = new THREE.Vector3(mailX, 0.95, mailZ + 0.2);
-    flyer.position.copy(deskPos);
-    g.add(flyer);
+      // Khay tài liệu
+      const tray = mesh(
+        new THREE.BoxGeometry(0.2, 0.025, 0.26),
+        new THREE.MeshStandardMaterial({
+          color: 0xa68040,
+          roughness: 0.55,
+        }),
+        false,
+      );
+      tray.position.set(deskX + 0.42, DESK_H + 0.015, deskZ - 0.05);
+      g.add(tray);
+      for (let i = 0; i < 3; i++) {
+        const sheet = mesh(
+          new THREE.BoxGeometry(0.17, 0.006, 0.22),
+          new THREE.MeshStandardMaterial({ color: 0xf4f1ea, roughness: 0.9 }),
+          false,
+        );
+        sheet.position.set(
+          deskX + 0.42,
+          DESK_H + 0.03 + i * 0.008,
+          deskZ - 0.05,
+        );
+        sheet.rotation.y = (i - 1) * 0.04;
+        g.add(sheet);
+      }
+
+      // Chậu cây nhỏ trên bàn
+      {
+        const k = 0.32;
+        const px = deskX + 0.42;
+        const pz = deskZ + 0.2;
+        const pot = mesh(
+          new THREE.CylinderGeometry(0.06 * k * 3, 0.05 * k * 3, 0.08, 14),
+          makeMatte(0xf4f4f1, 0.6),
+          false,
+        );
+        pot.position.set(px, DESK_H + 0.04, pz);
+        g.add(pot);
+        const leaf = mesh(
+          new THREE.IcosahedronGeometry(0.07, 1),
+          new THREE.MeshStandardMaterial({
+            color: 0x3f8f4f,
+            flatShading: true,
+            roughness: 0.9,
+          }),
+          false,
+        );
+        leaf.position.set(px, DESK_H + 0.12, pz);
+        g.add(leaf);
+      }
+    }
+
+    // Bộ ấm trà trên bàn trà kính (khớp layout FURNITURE_BY_FLOOR[4])
+    {
+      const tx = 0.38;
+      const tz = 0.55;
+      const topY = 0.23 * 1.8 * 0.68;
+      const matCer = makeMatte(0xf3f1ea, 0.45);
+      const matGold = new THREE.MeshStandardMaterial({
+        color: 0xc4a35a,
+        roughness: 0.4,
+        metalness: 0.55,
+      });
+      const matTray = makeMatte(0xd8d0c4, 0.55);
+
+      const tray = mesh(
+        new THREE.CylinderGeometry(0.1, 0.1, 0.012, 24),
+        matTray,
+        false,
+      );
+      tray.position.set(tx, topY + 0.006, tz);
+      g.add(tray);
+
+      // Ấm trà
+      const pot = new THREE.Group();
+      pot.position.set(tx - 0.01, topY + 0.012, tz + 0.01);
+      const body = mesh(
+        new THREE.SphereGeometry(0.038, 16, 12),
+        matCer,
+        false,
+      );
+      body.position.y = 0.04;
+      body.scale.set(1, 0.85, 1);
+      pot.add(body);
+      const lid = mesh(
+        new THREE.CylinderGeometry(0.022, 0.028, 0.01, 14),
+        matCer,
+        false,
+      );
+      lid.position.y = 0.072;
+      pot.add(lid);
+      const knob = mesh(new THREE.SphereGeometry(0.008, 10, 8), matGold, false);
+      knob.position.y = 0.082;
+      pot.add(knob);
+      const spout = mesh(
+        new THREE.CylinderGeometry(0.006, 0.01, 0.045, 8),
+        matCer,
+        false,
+      );
+      spout.position.set(0.04, 0.045, 0);
+      spout.rotation.z = -Math.PI / 2.6;
+      pot.add(spout);
+      const handle = mesh(
+        new THREE.TorusGeometry(0.022, 0.005, 8, 14, Math.PI),
+        matGold,
+        false,
+      );
+      handle.position.set(-0.038, 0.042, 0);
+      handle.rotation.y = Math.PI / 2;
+      pot.add(handle);
+      g.add(pot);
+
+      // 2 chén
+      for (const [dx, dz] of [
+        [0.055, -0.04],
+        [0.04, 0.05],
+      ]) {
+        const cup = mesh(
+          new THREE.CylinderGeometry(0.016, 0.013, 0.022, 12),
+          matCer,
+          false,
+        );
+        cup.position.set(tx + dx, topY + 0.023, tz + dz);
+        g.add(cup);
+        const rim = mesh(
+          new THREE.TorusGeometry(0.016, 0.0025, 6, 14),
+          matGold,
+          false,
+        );
+        rim.position.set(tx + dx, topY + 0.034, tz + dz);
+        rim.rotation.x = Math.PI / 2;
+        g.add(rim);
+      }
+    }
 
     g.userData.contact = {
-      flyer,
-      deskPos,
-      mailPos,
       screen: screenMat,
-      tip: tip.material,
-      signalRings,
-      seal: seal.material,
-      flag,
-      badge: badge24,
-      _mid: new THREE.Vector3(),
+      codeScreens: [screenState],
     };
     return g;
   }
@@ -2966,7 +2602,6 @@ export async function initWebglRipple() {
       accent: 0x19314a,
       props: propsHero,
       wallArt: "logo",
-      rug: false,
     },
     {
       num: "02",
@@ -2986,9 +2621,9 @@ export async function initWebglRipple() {
       num: "04",
       title: "Ship",
       accent: 0x1a2438,
+      // Chỉ bản quy trình 4 bước trên tường
       props: propsProcess,
       wallArt: "plain",
-      rug: false,
     },
     {
       num: "05",
@@ -2996,6 +2631,7 @@ export async function initWebglRipple() {
       accent: 0x19314a,
       props: propsContact,
       wallArt: "plain",
+      noCove: true,
     },
   ];
 
@@ -3019,7 +2655,7 @@ export async function initWebglRipple() {
     floorG.add(
       roomShell(meta.num, meta.title, side, meta.accent, {
         wallArt: meta.wallArt,
-        rug: meta.rug,
+        noCove: !!meta.noCove,
       }),
     );
     const props = mirrorPropsX(meta.props(), side);
@@ -3044,6 +2680,17 @@ export async function initWebglRipple() {
 
   scene.add(building);
 
+  // Cast: nhân vật + nội thất GLB (sau khi building sẵn)
+  let officeActors = [];
+  const nameTagLayer = createNameTagLayer();
+  try {
+    const kit = await kitPromise;
+    const populated = populateFloors(floors, kit);
+    officeActors = populated.actors;
+  } catch (err) {
+    console.error("Office cast unavailable", err);
+  }
+
   // Meeting room interactive refs (floor index 1)
   const meetProps = floors[1]?.getObjectByName("props");
   const lobbyProps = floors[0]?.getObjectByName("props");
@@ -3063,6 +2710,17 @@ export async function initWebglRipple() {
   const meetNegZ = new THREE.Vector3(0, 0, -1);
   const meetParentInv = new THREE.Matrix4();
   let meetBoardHot = false;
+
+  // Ship — máy chiếu PM → board quy trình
+  const shipProps = floors[3]?.getObjectByName("props");
+  const shipProjector = shipProps?.getObjectByName("shipProjector");
+  const shipScreen = shipProps?.getObjectByName("shipScreen");
+  const shipData = shipProps?.userData?.ship;
+  const shipAim = new THREE.Vector3();
+  const shipOrigin = new THREE.Vector3();
+  const shipDir = new THREE.Vector3();
+  const shipLocalDir = new THREE.Vector3();
+  const shipParentInv = new THREE.Matrix4();
 
   // Higher isometric camera (Journey diorama angle)
   const CAM_OFF = { x: 5.4, y: 4.0, z: 5.6 };
@@ -3099,7 +2757,7 @@ export async function initWebglRipple() {
   const rig = { ...startCam };
 
   // Left-drag orbit — delta yaw/pitch; absolute yaw clamped to open corner between walls
-  const orbit = { dYaw: 0, dPitch: 0, dragging: false, px: 0, py: 0 };
+  const orbit = { dYaw: 0, dPitch: 0, dragging: false, px: 0, py: 0, moved: 0 };
   const ORBIT_PITCH_MIN = -0.22;
   const ORBIT_PITCH_MAX = 0.32;
   // atan2(offsetX, offsetZ) stays inside open L (back wall −Z, side wall −side·X)
@@ -3223,6 +2881,7 @@ export async function initWebglRipple() {
     if (!orbit.dragging) return;
     const dx = e.clientX - orbit.px;
     const dy = e.clientY - orbit.py;
+    orbit.moved += Math.abs(dx) + Math.abs(dy);
     orbit.px = e.clientX;
     orbit.py = e.clientY;
     const side = floorSide(activeIndex);
@@ -3255,6 +2914,7 @@ export async function initWebglRipple() {
     // Don't steal clicks from slide copy CTAs on desktop
     if (e.target.closest?.(".landing-slide__copy")) return;
     orbit.dragging = true;
+    orbit.moved = 0;
     orbit.px = e.clientX;
     orbit.py = e.clientY;
     if (getViewMode() === "desktop" && canvas.style.pointerEvents !== "none") {
@@ -3290,7 +2950,12 @@ export async function initWebglRipple() {
       return;
     }
     lastFrameAt = now;
-    const t = clock.getElapsedTime();
+    // getDelta trước — getElapsedTime cũng cập nhật oldTime nên gọi sau sẽ nuốt dt
+    const dt = clock.getDelta();
+    const t = clock.elapsedTime;
+    // Idle + lễ tân vẫy + luồng TV↔KS↔Labs
+    updateActors(officeActors, dt);
+    updateOfficeFlow(officeActors, floors, dt);
     mouse.x += (mouse.tx - mouse.x) * 0.06;
     mouse.y += (mouse.ty - mouse.y) * 0.06;
 
@@ -3431,189 +3096,58 @@ export async function initWebglRipple() {
       }
     }
 
-    // Floor 03: scrolling code on dual monitors
+    // Floor 03: code screens + đèn SV nháy (đang hoạt động)
     if (activeIndex === 2 && !reduceMotion) {
       const capsProps = floors[2]?.getObjectByName("props");
       const screens = capsProps?.userData?.codeScreens;
       if (screens) screens.forEach((s) => paintCodeScreen(s, t));
-    }
-
-    // Floor 04: wall timeline + floor packet + station FX
-    if (activeIndex === 3 && !reduceMotion) {
-      const procProps = floors[3]?.getObjectByName("props");
-      const proc = procProps?.userData?.process;
-      if (proc?.nodes?.length) {
-        const n = proc.nodes.length;
-        const cycle = (t * 0.26) % n;
-        const i0 = Math.floor(cycle);
-        const f = cycle - i0;
-        const hold = f < 0.3 ? 0 : f > 0.85 ? 1 : (f - 0.3) / 0.55;
-
-        // Wall traveler still loops all nodes
-        const i1w = (i0 + 1) % n;
-        proc.traveler.position.set(
-          proc.xs[i0] + (proc.xs[i1w] - proc.xs[i0]) * hold,
-          proc.nodeY + 0.12,
-          proc.wallZ + 0.14,
-        );
-
-        const gift = proc.stationPts[3];
-        const start = proc.stationPts[0];
-        // 04 gift: stay → wrap → hide → respawn at 01 (no lerp 04→01)
-        if (i0 === 3) {
-          proc.packet.position.set(gift.x, proc.packetY, gift.z);
-          if (f < 0.42) {
-            proc.packet.visible = true;
-            const sink = f / 0.42;
-            proc.packet.scale.setScalar(1 - sink * 0.55);
-            proc.packet.position.y = proc.packetY + sink * 0.12;
-          } else {
-            proc.packet.visible = false;
-            proc.packet.scale.setScalar(1);
-          }
-        } else {
-          const i1 = i0 + 1;
-          const p0 = proc.stationPts[i0];
-          const p1 = proc.stationPts[i1];
-          proc.packet.visible = true;
-          // Pop-in at station 01
-          if (i0 === 0 && f < 0.25) {
-            const pop = f / 0.25;
-            proc.packet.position.set(start.x, proc.packetY, start.z);
-            proc.packet.scale.setScalar(0.4 + pop * 0.6);
-          } else {
-            proc.packet.scale.setScalar(1);
-            proc.packet.position.set(
-              p0.x + (p1.x - p0.x) * hold,
-              proc.packetY,
-              p0.z + (p1.z - p0.z) * hold,
-            );
-            const tdx = p1.x - p0.x;
-            const tdz = p1.z - p0.z;
-            if (tdx * tdx + tdz * tdz > 1e-6) {
-              proc.packet.rotation.y = Math.atan2(tdx, tdz);
-            }
-          }
-        }
-
-        if (proc.codeScreens)
-          proc.codeScreens.forEach((s) => paintCodeScreen(s, t));
-
-        proc.nodes.forEach((node, i) => {
-          const hot = i === i0 && f < 0.75;
-          if (node.core)
-            node.core.emissiveIntensity = hot
-              ? 1.8 + Math.sin(t * 6) * 0.4
-              : 0.55;
-          node.ring.scale.setScalar(hot ? 1.25 + Math.sin(t * 5) * 0.08 : 1);
-          if (node.pad) node.pad.position.y = hot ? 0.1 : 0.08;
-
-          const fx = node.fx;
-          if (!fx) return;
-
-          if (fx.flash) {
-            fx.flash.opacity = hot ? Math.max(0, Math.sin(t * 14) * 0.85) : 0;
-          }
-          if (node.glow && i === 0) {
-            node.glow.emissiveIntensity = hot
-              ? 1.8 + Math.sin(t * 12) * 0.6
-              : 0.5;
-          }
-
-          if (fx.code && node.glow) {
-            node.glow.emissiveIntensity = hot ? 0.95 : 0.45;
-          }
-
-          // 03 scanner beam sweeps
-          if (fx.scanBeam) {
-            if (hot) {
-              const sweep = Math.sin(t * 7) * 0.5 + 0.5;
-              fx.scanBeam.position.y =
-                fx.beamY0 + (fx.beamY1 - fx.beamY0) * sweep;
-              fx.scanMat.opacity = 0.35 + sweep * 0.4;
-              if (node.glow)
-                node.glow.emissiveIntensity = 1.6 + Math.sin(t * 10) * 0.5;
-            } else {
-              fx.scanBeam.position.y = (fx.beamY0 + fx.beamY1) / 2;
-              fx.scanMat.opacity = 0.18;
-              if (node.glow) node.glow.emissiveIntensity = 0.55;
-            }
-          }
-
-          // 04 gift wrap → seal lid
-          if (fx.lid) {
-            const wrapping = i0 === 3 && f < 0.75;
-            const target = wrapping ? fx.shutX : fx.openX;
-            fx.lid.rotation.x += (target - fx.lid.rotation.x) * 0.16;
-            if (fx.ribbon) {
-              fx.ribbon.emissiveIntensity = wrapping
-                ? 2.2 + Math.sin(t * 9) * 0.7
-                : 0.7;
-            }
-          }
+      const leds = capsProps?.userData?.serverLeds;
+      if (leds) {
+        leds.forEach((led, i) => {
+          // VP: sin(GIO*(3+i)+i*2) > 0 ? 1.2 : .15
+          const on = Math.sin(t * (3 + i) + i * 2) > 0;
+          led.material.emissiveIntensity = on ? 1.35 : 0.12;
         });
       }
     }
 
-    // Floor 05: sealed envelope desk → company email mailbox
+    // Floor 04: beam máy chiếu → board + màn Tester
+    if (activeIndex === 3 && shipProjector && shipScreen && !reduceMotion) {
+      shipScreen.getWorldPosition(shipAim);
+      shipProjector.getWorldPosition(shipOrigin);
+      shipDir.copy(shipAim).sub(shipOrigin).normalize();
+      shipLocalDir.copy(shipDir);
+      if (shipProjector.parent) {
+        shipProjector.parent.updateMatrixWorld(true);
+        shipParentInv.copy(shipProjector.parent.matrixWorld).invert();
+        shipLocalDir.transformDirection(shipParentInv);
+      }
+      if (shipLocalDir.lengthSq() > 1e-6) {
+        shipProjector.quaternion.setFromUnitVectors(
+          meetNegZ,
+          shipLocalDir.normalize(),
+        );
+      }
+      if (shipData?.procBoard) paintProcessBoard(shipData.procBoard, t);
+      if (shipData?.boardMat) {
+        shipData.boardMat.emissiveIntensity =
+          0.5 + Math.sin(t * 2.4) * 0.18;
+      }
+      if (shipData?.beamMat) {
+        shipData.beamMat.opacity = 0.12 + Math.sin(t * 3.1) * 0.05;
+      }
+      if (shipData?.codeScreens) {
+        shipData.codeScreens.forEach((s) => paintCodeScreen(s, t));
+      }
+    }
+
+    // Floor 05: màn CEO nhịp nhẹ
     if (activeIndex === 4 && !reduceMotion) {
       const contactProps = floors[4]?.getObjectByName("props");
       const c = contactProps?.userData?.contact;
-      if (c?.flyer && c.deskPos && c.mailPos) {
-        const cycle = (t * 0.22) % 1;
-        // 0–0.25 hold desk → 0.25–0.7 fly → 0.7–0.85 absorb → 0.85–1 reset
-        if (cycle < 0.25) {
-          c.flyer.visible = true;
-          c.flyer.position.copy(c.deskPos);
-          c.flyer.scale.setScalar(1);
-          c.flyer.rotation.y = Math.sin(t * 2) * 0.15;
-        } else if (cycle < 0.7) {
-          const u = (cycle - 0.25) / 0.45;
-          // Arc flight
-          c._mid.lerpVectors(c.deskPos, c.mailPos, u);
-          c._mid.y += Math.sin(u * Math.PI) * 0.55;
-          c.flyer.visible = true;
-          c.flyer.position.copy(c._mid);
-          c.flyer.rotation.y = u * Math.PI * 1.2;
-          c.flyer.scale.setScalar(1 - u * 0.15);
-        } else if (cycle < 0.85) {
-          const u = (cycle - 0.7) / 0.15;
-          c.flyer.position.copy(c.mailPos);
-          c.flyer.scale.setScalar(Math.max(0.05, 1 - u));
-          c.flyer.visible = u < 0.95;
-        } else {
-          c.flyer.visible = false;
-          c.flyer.position.copy(c.deskPos);
-          c.flyer.scale.setScalar(1);
-        }
-        const delivered = cycle >= 0.7 && cycle < 0.95;
-        if (c.screen)
-          c.screen.emissiveIntensity = delivered
-            ? 1.1
-            : 0.55 + Math.sin(t * 2.5) * 0.2;
-        if (c.tip)
-          c.tip.emissiveIntensity = delivered
-            ? 2.4 + Math.sin(t * 12) * 0.8
-            : 1.1 + Math.sin(t * 4) * 0.35;
-        if (c.seal) c.seal.emissiveIntensity = 1.4 + Math.sin(t * 5) * 0.5;
-        if (c.flag)
-          c.flag.rotation.z = delivered ? 1.1 : 0.4 + Math.sin(t * 1.5) * 0.08;
-        if (c.badge)
-          c.badge.scale.setScalar(
-            delivered ? 1.15 + Math.sin(t * 8) * 0.06 : 1,
-          );
-        // Expanding WiFi rings from mast tip
-        if (c.signalRings) {
-          const boost = delivered ? 1.35 : 1;
-          c.signalRings.forEach((ring) => {
-            const phase = (t * 0.55 + ring.userData.signalPhase) % 1;
-            const s = (0.55 + phase * 2.2) * boost;
-            ring.scale.set(s, s, s);
-            ring.material.opacity = (1 - phase) * (delivered ? 0.55 : 0.32);
-            ring.position.y = 1.64 + phase * 0.08;
-          });
-        }
-      }
+      if (c?.codeScreens) c.codeScreens.forEach((s) => paintCodeScreen(s, t));
+      if (c?.screen)
+        c.screen.emissiveIntensity = 0.5 + Math.sin(t * 2.2) * 0.15;
     }
 
     // Hero icons float + labels always face camera
@@ -3651,6 +3185,8 @@ export async function initWebglRipple() {
     key.target.updateMatrixWorld();
 
     renderer.render(scene, camera);
+    // Name tag sau render — dùng ma trận camera đã cập nhật
+    syncNameTags(nameTagLayer, officeActors, camera, canvas, activeIndex);
     if (assetsReady && !firstFrameRendered) {
       firstFrameRendered = true;
       canvas.dataset.sceneReady = "true";

@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "yarn && next dev",
+    "dev": "yarn && next dev -p 3021",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3021",
     "lint": "eslint",
     "test:seo": "node --test scripts/check-seo.mjs"
   },

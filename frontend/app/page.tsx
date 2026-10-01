@@ -33,7 +33,8 @@ export default function Home() {
         className="landing-brand"
         href="#hero"
         data-slide="0"
-        aria-label="SoU Technology Solutions — Trang chủ">
+        aria-label="SoU Technology Solutions — Trang chủ"
+      >
         <Image
           className="landing-brand__logo"
           src="/client/images/logo.svg"
@@ -47,13 +48,16 @@ export default function Home() {
       <nav
         className="landing-side-nav"
         id="landing-side-nav"
-        aria-label="Điều hướng section">
+        aria-label="Điều hướng section"
+      >
         <ul className="landing-side-nav__list" role="list">
           <li role="listitem">
             <a
               className="landing-side-nav__btn is-active"
               data-slide="0"
-              aria-controls="hero" href="#hero">
+              aria-controls="hero"
+              href="#hero"
+            >
               <span className="landing-side-nav__num">01</span>
               <span className="landing-side-nav__label">Trang Chủ</span>
               <span className="landing-side-nav__dot" aria-hidden="true"></span>
@@ -63,7 +67,9 @@ export default function Home() {
             <a
               className="landing-side-nav__btn"
               data-slide="1"
-              aria-controls="why" href="#why">
+              aria-controls="why"
+              href="#why"
+            >
               <span className="landing-side-nav__num">02</span>
               <span className="landing-side-nav__label">Về Chúng Tôi</span>
               <span className="landing-side-nav__dot" aria-hidden="true"></span>
@@ -73,7 +79,9 @@ export default function Home() {
             <a
               className="landing-side-nav__btn"
               data-slide="2"
-              aria-controls="capabilities" href="#capabilities">
+              aria-controls="capabilities"
+              href="#capabilities"
+            >
               <span className="landing-side-nav__num">03</span>
               <span className="landing-side-nav__label">Năng Lực</span>
               <span className="landing-side-nav__dot" aria-hidden="true"></span>
@@ -83,7 +91,9 @@ export default function Home() {
             <a
               className="landing-side-nav__btn"
               data-slide="3"
-              aria-controls="process" href="#process">
+              aria-controls="process"
+              href="#process"
+            >
               <span className="landing-side-nav__num">04</span>
               <span className="landing-side-nav__label">Quy Trình</span>
               <span className="landing-side-nav__dot" aria-hidden="true"></span>
@@ -93,7 +103,9 @@ export default function Home() {
             <a
               className="landing-side-nav__btn"
               data-slide="4"
-              aria-controls="contact" href="#contact">
+              aria-controls="contact"
+              href="#contact"
+            >
               <span className="landing-side-nav__num">05</span>
               <span className="landing-side-nav__label">Liên Hệ</span>
               <span className="landing-side-nav__dot" aria-hidden="true"></span>
@@ -115,13 +127,15 @@ export default function Home() {
         type="button"
         aria-expanded="false"
         aria-controls="landing-track"
-        aria-label="Mở nội dung section">
+        aria-label="Mở nội dung section"
+      >
         <span className="landing-sheet-pill__num" id="landing-sheet-pill-num">
           01
         </span>
         <span
           className="landing-sheet-pill__floor"
-          id="landing-sheet-pill-floor">
+          id="landing-sheet-pill-floor"
+        >
           Lobby
         </span>
         <span className="landing-sheet-pill__sep" aria-hidden="true">
@@ -129,7 +143,8 @@ export default function Home() {
         </span>
         <span
           className="landing-sheet-pill__title"
-          id="landing-sheet-pill-title">
+          id="landing-sheet-pill-title"
+        >
           Giải pháp công nghệ
         </span>
         <span className="landing-sheet-pill__chev" aria-hidden="true">
@@ -139,14 +154,16 @@ export default function Home() {
       <canvas
         className="landing-webgl"
         id="webgl-bg-canvas"
-        aria-hidden="true"></canvas>
+        aria-hidden="true"
+      ></canvas>
       <main className="landing-stage" id="main-content">
         <div className="landing-track" id="landing-track">
           <section
             className="landing-slide is-active"
             id="hero"
             data-slide="0"
-            aria-labelledby="hero-title">
+            aria-labelledby="hero-title"
+          >
             <div className="container-fluid landing-slide__grid">
               <div className="row align-items-center g-4 g-xl-5 h-100">
                 <div className="col-lg-6 landing-slide__copy">
@@ -156,10 +173,17 @@ export default function Home() {
                     </p>
                     <h1 className="landing-slide__title" id="hero-title">
                       <span className="landing-slide__title-line">
-                        SoU Tech — Giải pháp công nghệ
+                        SoU Technology Solutions
                       </span>
+                    </h1>
+                    <h3 className="landing-slide__subtitle" id="hero-subtitle">
+                      <span className="landing-slide__title-line">
+                        Giải pháp công nghệ cho
+                      </span>
+                    </h3>
+                    <h1 className="landing-slide__title">
                       <span className="landing-slide__title-line landing-slide__title-line--accent">
-                        Cho doanh nghiệp tương lai
+                        Doanh nghiệp tương lai
                       </span>
                     </h1>
                     <p className="landing-slide__desc">
@@ -170,26 +194,33 @@ export default function Home() {
                     <div className="landing-slide__actions">
                       <a
                         className="landing-btn landing-btn--primary"
-                        data-slide="2" href="#capabilities">
+                        data-slide="2"
+                        href="#capabilities"
+                      >
                         Khám phá năng lực
                         <i
                           className="fa-solid fa-arrow-right"
-                          aria-hidden="true"></i>
+                          aria-hidden="true"
+                        ></i>
                       </a>
                       <a
                         className="landing-btn landing-btn--ghost"
-                        data-slide="4" href="#contact">
+                        data-slide="4"
+                        href="#contact"
+                      >
                         Trao đổi dự án
                         <i
                           className="fa-solid fa-arrow-right"
-                          aria-hidden="true"></i>
+                          aria-hidden="true"
+                        ></i>
                       </a>
                     </div>
                     <ul className="landing-features" role="list">
                       <li className="landing-feature">
                         <span
                           className="landing-feature__icon"
-                          aria-hidden="true">
+                          aria-hidden="true"
+                        >
                           <i className="fa-solid fa-shield-halved"></i>
                         </span>
                         <span className="landing-feature__text">
@@ -200,7 +231,8 @@ export default function Home() {
                       <li className="landing-feature">
                         <span
                           className="landing-feature__icon"
-                          aria-hidden="true">
+                          aria-hidden="true"
+                        >
                           <i className="fa-solid fa-chart-line"></i>
                         </span>
                         <span className="landing-feature__text">
@@ -211,7 +243,8 @@ export default function Home() {
                       <li className="landing-feature">
                         <span
                           className="landing-feature__icon"
-                          aria-hidden="true">
+                          aria-hidden="true"
+                        >
                           <i className="fa-solid fa-cubes"></i>
                         </span>
                         <span className="landing-feature__text">
@@ -222,7 +255,8 @@ export default function Home() {
                       <li className="landing-feature">
                         <span
                           className="landing-feature__icon"
-                          aria-hidden="true">
+                          aria-hidden="true"
+                        >
                           <i className="fa-solid fa-handshake"></i>
                         </span>
                         <span className="landing-feature__text">
@@ -235,7 +269,8 @@ export default function Home() {
                 </div>
                 <div
                   className="col-lg-6 landing-slide__model"
-                  aria-hidden="true">
+                  aria-hidden="true"
+                >
                   <div className="landing-slide__model-slot"></div>
                 </div>
               </div>
@@ -245,7 +280,8 @@ export default function Home() {
             className="landing-slide"
             id="why"
             data-slide="1"
-            aria-labelledby="why-title">
+            aria-labelledby="why-title"
+          >
             <div className="container-fluid landing-slide__grid">
               <div className="row align-items-center g-4 g-xl-5 h-100">
                 <div className="col-lg-6 landing-slide__copy">
@@ -269,26 +305,33 @@ export default function Home() {
                     <div className="landing-slide__actions">
                       <a
                         className="landing-btn landing-btn--primary"
-                        data-slide="2" href="#capabilities">
+                        data-slide="2"
+                        href="#capabilities"
+                      >
                         Xem năng lực
                         <i
                           className="fa-solid fa-arrow-right"
-                          aria-hidden="true"></i>
+                          aria-hidden="true"
+                        ></i>
                       </a>
                       <a
                         className="landing-btn landing-btn--ghost"
-                        data-slide="4" href="#contact">
+                        data-slide="4"
+                        href="#contact"
+                      >
                         Trao đổi dự án
                         <i
                           className="fa-solid fa-arrow-right"
-                          aria-hidden="true"></i>
+                          aria-hidden="true"
+                        ></i>
                       </a>
                     </div>
                     <ul className="landing-features" role="list">
                       <li className="landing-feature">
                         <span
                           className="landing-feature__icon"
-                          aria-hidden="true">
+                          aria-hidden="true"
+                        >
                           <i className="fa-solid fa-comments"></i>
                         </span>
                         <span className="landing-feature__text">
@@ -299,7 +342,8 @@ export default function Home() {
                       <li className="landing-feature">
                         <span
                           className="landing-feature__icon"
-                          aria-hidden="true">
+                          aria-hidden="true"
+                        >
                           <i className="fa-solid fa-vial"></i>
                         </span>
                         <span className="landing-feature__text">
@@ -310,7 +354,8 @@ export default function Home() {
                       <li className="landing-feature">
                         <span
                           className="landing-feature__icon"
-                          aria-hidden="true">
+                          aria-hidden="true"
+                        >
                           <i className="fa-solid fa-file-contract"></i>
                         </span>
                         <span className="landing-feature__text">
@@ -321,7 +366,8 @@ export default function Home() {
                       <li className="landing-feature">
                         <span
                           className="landing-feature__icon"
-                          aria-hidden="true">
+                          aria-hidden="true"
+                        >
                           <i className="fa-solid fa-handshake"></i>
                         </span>
                         <span className="landing-feature__text">
@@ -334,7 +380,8 @@ export default function Home() {
                 </div>
                 <div
                   className="col-lg-6 landing-slide__model"
-                  aria-hidden="true">
+                  aria-hidden="true"
+                >
                   <div className="landing-slide__model-slot"></div>
                 </div>
               </div>
@@ -344,7 +391,8 @@ export default function Home() {
             className="landing-slide"
             id="capabilities"
             data-slide="2"
-            aria-labelledby="caps-title">
+            aria-labelledby="caps-title"
+          >
             <div className="container-fluid landing-slide__grid">
               <div className="row align-items-center g-4 g-xl-5 h-100">
                 <div className="col-lg-6 landing-slide__copy">
@@ -362,32 +410,39 @@ export default function Home() {
                     </h2>
                     <p className="landing-slide__desc">
                       SoU Tech phát triển phần mềm, SaaS, Blockchain &amp; Web3
-                      cùng dịch vụ chăm sóc và kiểm thử bảo mật website
-                      cho doanh nghiệp.
+                      cùng dịch vụ chăm sóc và kiểm thử bảo mật website cho
+                      doanh nghiệp.
                     </p>
                     <div className="landing-slide__actions">
                       <a
                         className="landing-btn landing-btn--primary"
-                        data-slide="4" href="#contact">
+                        data-slide="4"
+                        href="#contact"
+                      >
                         Trao đổi dự án
                         <i
                           className="fa-solid fa-arrow-right"
-                          aria-hidden="true"></i>
+                          aria-hidden="true"
+                        ></i>
                       </a>
                       <a
                         className="landing-btn landing-btn--ghost"
-                        data-slide="3" href="#process">
+                        data-slide="3"
+                        href="#process"
+                      >
                         Xem quy trình
                         <i
                           className="fa-solid fa-arrow-right"
-                          aria-hidden="true"></i>
+                          aria-hidden="true"
+                        ></i>
                       </a>
                     </div>
                     <ul className="landing-features" role="list">
                       <li className="landing-feature">
                         <span
                           className="landing-feature__icon"
-                          aria-hidden="true">
+                          aria-hidden="true"
+                        >
                           <i className="fa-solid fa-code"></i>
                         </span>
                         <span className="landing-feature__text">
@@ -401,7 +456,8 @@ export default function Home() {
                       <li className="landing-feature">
                         <span
                           className="landing-feature__icon"
-                          aria-hidden="true">
+                          aria-hidden="true"
+                        >
                           <i className="fa-solid fa-cloud"></i>
                         </span>
                         <span className="landing-feature__text">
@@ -414,7 +470,8 @@ export default function Home() {
                       <li className="landing-feature">
                         <span
                           className="landing-feature__icon"
-                          aria-hidden="true">
+                          aria-hidden="true"
+                        >
                           <i className="fa-solid fa-link"></i>
                         </span>
                         <span className="landing-feature__text">
@@ -427,7 +484,8 @@ export default function Home() {
                       <li className="landing-feature">
                         <span
                           className="landing-feature__icon"
-                          aria-hidden="true">
+                          aria-hidden="true"
+                        >
                           <i className="fa-solid fa-pen-to-square"></i>
                         </span>
                         <span className="landing-feature__text">
@@ -440,14 +498,15 @@ export default function Home() {
                       <li className="landing-feature landing-feature--wide">
                         <span
                           className="landing-feature__icon"
-                          aria-hidden="true">
+                          aria-hidden="true"
+                        >
                           <i className="fa-solid fa-shield-halved"></i>
                         </span>
                         <span className="landing-feature__text">
                           <strong>Kiểm thử bảo mật website (Pentest)</strong>
                           <small>
-                            Đánh giá lỗ hổng bảo mật, báo cáo mức độ rủi ro
-                            và đề xuất khắc phục theo phạm vi thống nhất.
+                            Đánh giá lỗ hổng bảo mật, báo cáo mức độ rủi ro và
+                            đề xuất khắc phục theo phạm vi thống nhất.
                           </small>
                         </span>
                       </li>
@@ -456,7 +515,8 @@ export default function Home() {
                 </div>
                 <div
                   className="col-lg-6 landing-slide__model"
-                  aria-hidden="true">
+                  aria-hidden="true"
+                >
                   <div className="landing-slide__model-slot"></div>
                 </div>
               </div>
@@ -466,7 +526,8 @@ export default function Home() {
             className="landing-slide"
             id="process"
             data-slide="3"
-            aria-labelledby="process-title">
+            aria-labelledby="process-title"
+          >
             <div className="container-fluid landing-slide__grid">
               <div className="row align-items-center g-4 g-xl-5 h-100">
                 <div className="col-lg-6 landing-slide__copy">
@@ -489,26 +550,33 @@ export default function Home() {
                     <div className="landing-slide__actions">
                       <a
                         className="landing-btn landing-btn--primary"
-                        data-slide="4" href="#contact">
+                        data-slide="4"
+                        href="#contact"
+                      >
                         Trao đổi dự án
                         <i
                           className="fa-solid fa-arrow-right"
-                          aria-hidden="true"></i>
+                          aria-hidden="true"
+                        ></i>
                       </a>
                       <a
                         className="landing-btn landing-btn--ghost"
-                        data-slide="0" href="#hero">
+                        data-slide="0"
+                        href="#hero"
+                      >
                         Về trang chủ
                         <i
                           className="fa-solid fa-arrow-right"
-                          aria-hidden="true"></i>
+                          aria-hidden="true"
+                        ></i>
                       </a>
                     </div>
                     <ul className="landing-features" role="list">
                       <li className="landing-feature">
                         <span
                           className="landing-feature__icon"
-                          aria-hidden="true">
+                          aria-hidden="true"
+                        >
                           <i className="fa-solid fa-magnifying-glass-chart"></i>
                         </span>
                         <span className="landing-feature__text">
@@ -519,7 +587,8 @@ export default function Home() {
                       <li className="landing-feature">
                         <span
                           className="landing-feature__icon"
-                          aria-hidden="true">
+                          aria-hidden="true"
+                        >
                           <i className="fa-solid fa-laptop-code"></i>
                         </span>
                         <span className="landing-feature__text">
@@ -530,7 +599,8 @@ export default function Home() {
                       <li className="landing-feature">
                         <span
                           className="landing-feature__icon"
-                          aria-hidden="true">
+                          aria-hidden="true"
+                        >
                           <i className="fa-solid fa-vial"></i>
                         </span>
                         <span className="landing-feature__text">
@@ -541,7 +611,8 @@ export default function Home() {
                       <li className="landing-feature">
                         <span
                           className="landing-feature__icon"
-                          aria-hidden="true">
+                          aria-hidden="true"
+                        >
                           <i className="fa-solid fa-gift"></i>
                         </span>
                         <span className="landing-feature__text">
@@ -554,7 +625,8 @@ export default function Home() {
                 </div>
                 <div
                   className="col-lg-6 landing-slide__model"
-                  aria-hidden="true">
+                  aria-hidden="true"
+                >
                   <div className="landing-slide__model-slot"></div>
                 </div>
               </div>
@@ -564,36 +636,67 @@ export default function Home() {
             className="landing-slide"
             id="contact"
             data-slide="4"
-            aria-labelledby="contact-title">
+            aria-labelledby="contact-title"
+          >
             <div className="container-fluid landing-slide__grid">
               <div className="row align-items-center g-4 g-xl-5 h-100">
                 <div className="col-lg-6 landing-slide__copy mt-lg-0">
                   <div className="landing-slide__content">
                     <div className="landing-contact-copy">
-                      <p className="landing-eyebrow landing-eyebrow--rule">Liên hệ SoU</p>
+                      <p className="landing-eyebrow landing-eyebrow--rule">
+                        Liên hệ SoU
+                      </p>
                       <h2 className="landing-slide__title" id="contact-title">
-                        <span className="landing-slide__title-line">Cùng trao đổi</span>
-                        <span className="landing-slide__title-line landing-slide__title-line--accent">Giải pháp cho doanh nghiệp</span>
+                        <span className="landing-slide__title-line">
+                          Cùng trao đổi
+                        </span>
+                        <span className="landing-slide__title-line landing-slide__title-line--accent">
+                          Giải pháp cho doanh nghiệp
+                        </span>
                       </h2>
                       <p className="landing-slide__desc">
                         Kết nối với SoU Tech để tư vấn phần mềm, SaaS,
-                        Blockchain &amp; Web3, chăm sóc website và kiểm thử
-                        bảo mật website (Pentest) cho doanh nghiệp.
+                        Blockchain &amp; Web3, chăm sóc website và kiểm thử bảo
+                        mật website (Pentest) cho doanh nghiệp.
                       </p>
                       <address className="landing-contact-email">
-                        <span className="landing-contact-email__label">Trao đổi trực tiếp với chúng tôi</span>
-                        <a className="landing-contact-email__address" href="mailto:contact@soutechnology.vn">
+                        <span className="landing-contact-email__label">
+                          Trao đổi trực tiếp với chúng tôi
+                        </span>
+                        <a
+                          className="landing-contact-email__address"
+                          href="mailto:contact@soutechnology.vn"
+                        >
                           contact@soutechnology.vn
-                          <i className="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+                          <i
+                            className="fa-solid fa-arrow-up-right-from-square"
+                            aria-hidden="true"
+                          ></i>
                         </a>
-                        <a className="landing-contact-email__address" href="tel:0877721112" aria-label="Gọi SoU qua số điện thoại 087 772 1112">
+                        <a
+                          className="landing-contact-email__address"
+                          href="tel:0877721112"
+                          aria-label="Gọi SoU qua số điện thoại 087 772 1112"
+                        >
                           087 772 1112
-                          <i className="fa-solid fa-phone" aria-hidden="true"></i>
+                          <i
+                            className="fa-solid fa-phone"
+                            aria-hidden="true"
+                          ></i>
                         </a>
-                        <p>Chia sẻ ngắn gọn nhu cầu hoặc gửi tài liệu dự án qua email.</p>
-                        <a className="landing-btn landing-btn--primary" href="mailto:contact@soutechnology.vn">
+                        <p>
+                          Chia sẻ ngắn gọn nhu cầu hoặc gửi tài liệu dự án qua
+                          email.
+                        </p>
+                        <a
+                          className="landing-btn landing-btn--primary"
+                          href="mailto:contact@soutechnology.vn"
+                        >
                           Gửi email cho SoU
-                          <i className="fa-solid fa-arrow-right" aria-hidden="true"></i>
+                          <i
+                            className="fa-solid fa-arrow-right"
+                            aria-hidden="true"
+                          ></i>
                         </a>
                       </address>
                       <a
@@ -601,24 +704,53 @@ export default function Home() {
                         href={site.facebook}
                         target="_blank"
                         rel="noopener noreferrer"
-                        aria-label="SoU Technology trên Facebook (mở trong tab mới)">
-                        <span className="landing-contact-facebook__icon" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                        aria-label="SoU Technology trên Facebook (mở trong tab mới)"
+                      >
+                        <span
+                          className="landing-contact-facebook__icon"
+                          aria-hidden="true"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            width="22"
+                            height="22"
+                            fill="currentColor"
+                          >
                             <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.413c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.971h-1.513c-1.49 0-1.956.931-1.956 1.887v2.263h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073Z" />
                           </svg>
                         </span>
                         <span className="landing-contact-facebook__copy">
                           <strong>SoU Technology trên Facebook</strong>
-                          <span>Theo dõi cập nhật &amp; nhắn tin trao đổi dự án</span>
+                          <span>
+                            Theo dõi cập nhật &amp; nhắn tin trao đổi dự án
+                          </span>
                         </span>
-                        <i className="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+                        <i
+                          className="fa-solid fa-arrow-up-right-from-square"
+                          aria-hidden="true"
+                        ></i>
                       </a>
                       <div className="landing-contact-advice">
                         <h3>SoU tư vấn cùng bạn</h3>
                         <ul>
-                          <li><strong>Làm rõ nhu cầu</strong><span>Xác định mục tiêu và tính năng cần thiết.</span></li>
-                          <li><strong>Đề xuất giải pháp</strong><span>Định hướng công nghệ phù hợp với nghiệp vụ.</span></li>
-                          <li><strong>Thống nhất triển khai</strong><span>Trao đổi phạm vi, thời gian và ngân sách dự kiến.</span></li>
+                          <li>
+                            <strong>Làm rõ nhu cầu</strong>
+                            <span>
+                              Xác định mục tiêu và tính năng cần thiết.
+                            </span>
+                          </li>
+                          <li>
+                            <strong>Đề xuất giải pháp</strong>
+                            <span>
+                              Định hướng công nghệ phù hợp với nghiệp vụ.
+                            </span>
+                          </li>
+                          <li>
+                            <strong>Thống nhất triển khai</strong>
+                            <span>
+                              Trao đổi phạm vi, thời gian và ngân sách dự kiến.
+                            </span>
+                          </li>
                         </ul>
                       </div>
                     </div>
@@ -626,7 +758,8 @@ export default function Home() {
                 </div>
                 <div
                   className="col-lg-6 landing-slide__model"
-                  aria-hidden="true">
+                  aria-hidden="true"
+                >
                   <div className="landing-slide__model-slot"></div>
                 </div>
               </div>
