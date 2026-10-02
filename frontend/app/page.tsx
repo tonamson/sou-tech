@@ -136,7 +136,7 @@ export default function Home() {
           className="landing-sheet-pill__floor"
           id="landing-sheet-pill-floor"
         >
-          Lobby
+          Trang Chủ
         </span>
         <span className="landing-sheet-pill__sep" aria-hidden="true">
           ·

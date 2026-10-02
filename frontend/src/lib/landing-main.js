@@ -36,13 +36,13 @@ export function initLandingMain() {
   var narrowMq = window.matchMedia("(max-width: 1024px)");
   var hasGsap = typeof gsap !== "undefined";
   var slideTl = null;
-  // Match 3D floorMeta titles
+  // num pill — tên floor lấy từ side-nav (desktop) để mobile/desktop khớp
   var floorPillMeta = [
-    { num: "01", floor: "Lobby" },
-    { num: "02", floor: "Meet" },
-    { num: "03", floor: "Labs" },
-    { num: "04", floor: "Ship" },
-    { num: "05", floor: "Talk" },
+    { num: "01" },
+    { num: "02" },
+    { num: "03" },
+    { num: "04" },
+    { num: "05" },
   ];
 
   if (hasGsap && gsap.ticker && gsap.ticker.lagSmoothing) {
@@ -80,8 +80,13 @@ export function initLandingMain() {
     var slide = slides[index];
     var line = slide && slide.querySelector(".landing-slide__title-line");
     var title = line ? line.textContent.trim() : "";
+    // Cùng tên với desktop: .landing-side-nav__label
+    var navLabel = document.querySelector(
+      '.landing-side-nav__btn[data-slide="' + index + '"] .landing-side-nav__label'
+    );
+    var floor = navLabel ? navLabel.textContent.trim() : "";
     if (pillNum) pillNum.textContent = meta.num;
-    if (pillFloor) pillFloor.textContent = meta.floor;
+    if (pillFloor) pillFloor.textContent = floor;
     if (pillTitle) pillTitle.textContent = title;
   }
 
@@ -208,16 +213,14 @@ export function initLandingMain() {
 
   function setSlide(next, historyMethod = "replaceState") {
     if (next < 0 || next >= total) return;
-    if (next === index) {
-      if (isNarrow()) setSheetOpen(true);
-      return;
-    }
+    if (next === index) return;
     if (locked) return;
     locked = true;
     var prev = index;
     index = next;
 
     setNav(index);
+    // Mobile/tablet: sheet mặc định đóng — chỉ mở khi bấm pill
     collapseSheet();
 
     if (typeof window.transitionWebGlBg === "function") {
@@ -225,7 +228,6 @@ export function initLandingMain() {
     }
 
     markSlides(index);
-    if (isNarrow()) setSheetOpen(true);
     if (historyMethod) {
       window.history[historyMethod](null, "", "#" + slides[index].id);
     }
@@ -283,7 +285,7 @@ export function initLandingMain() {
 
   markSlides(index);
   setNav(index);
-  if (isNarrow() && initialIndex > 0) setSheetOpen(true);
+  collapseSheet();
   introChrome();
 
   buttons.forEach(function (el) {
@@ -395,7 +397,6 @@ export function initLandingMain() {
 
   narrowMq.addEventListener("change", function () {
     collapseSheet();
-    if (isNarrow()) setSheetOpen(true);
   });
 
   // Enhance only after navigation is ready; failed/disabled JS keeps readable HTML.

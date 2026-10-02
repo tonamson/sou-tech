@@ -624,11 +624,16 @@ body.landing--stage {
   }
 }
 
-// Sheet open → dim model further (reads as behind content)
+// Sheet open → dim model + ẩn name-tag (tránh che landing-slide__copy)
 @include media(md) {
   body.is-sheet-open .landing-webgl {
     opacity: 0.42;
     filter: saturate(0.85) brightness(0.92);
+  }
+
+  body.is-sheet-open #sou-nametags {
+    opacity: 0;
+    visibility: hidden;
   }
 }
 
@@ -756,6 +761,11 @@ body.landing--stage {
         transform: translate3d(0, 0, 0);
         opacity: 1;
         visibility: visible;
+        // Cao gần full — vẫn dưới logo brand (top-left)
+        top: calc(4.5rem + env(safe-area-inset-top, 0px));
+        height: auto;
+        max-height: none;
+        border-radius: 22px 22px 0 0;
       }
     }
 
@@ -770,6 +780,12 @@ body.landing--stage {
       overscroll-behavior: contain;
       padding-bottom: 0.35rem;
       -webkit-overflow-scrolling: touch;
+    }
+
+    &.is-active &__copy.is-sheet-open .landing-slide__content {
+      max-height: none;
+      flex: 1 1 auto;
+      min-height: 0;
     }
 
     &.is-active &__content--form {
@@ -1295,6 +1311,14 @@ body.landing--stage {
 
   .landing-features {
     gap: 0.7rem 0.85rem;
+  }
+
+  // Chỉ tầng Năng Lực — features full width trên mobile
+  #capabilities .landing-features {
+    width: 100%;
+    max-width: none;
+    align-self: stretch;
+    grid-template-columns: 1fr;
   }
 
   .landing-feature__icon {

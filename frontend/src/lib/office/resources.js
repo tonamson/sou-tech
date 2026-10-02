@@ -55,8 +55,14 @@ export const FURN_SCALE = {
   rugRectangle: 1.35,
 };
 
-/** Món cần preload. */
-export const FURNITURE_NAMES = Object.keys(FURN_SCALE);
+/** Chỉ preload món thực sự gắn trong FURNITURE_BY_FLOOR (bỏ GLB thừa). */
+export function listUsedFurnitureNames() {
+  const set = new Set();
+  for (const floor of FURNITURE_BY_FLOOR) {
+    for (const item of floor) set.add(item.name);
+  }
+  return [...set];
+}
 
 /**
  * Layout nội thất GLB theo tầng.
@@ -305,14 +311,15 @@ export const FURNITURE_BY_FLOOR = [
 ];
 
 /**
- * Load toàn bộ GLB nội thất.
+ * Load GLB nội thất đang dùng (song song).
  * @param {import("three").LoadingManager} [manager]
  * @returns {Promise<Record<string, import("three").Object3D>>}
  */
 export async function loadFurniture(manager) {
   const gltf = new GLTFLoader(manager);
+  const names = listUsedFurnitureNames();
   const entries = await Promise.all(
-    FURNITURE_NAMES.map((n) =>
+    names.map((n) =>
       gltf.loadAsync(`${BASE}/${n}.glb`).then((g) => [n, g.scene]),
     ),
   );

@@ -8,8 +8,10 @@ import gsap from "gsap";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import {
-  loadOfficeKit,
-  populateFloors,
+  loadFurniture,
+  loadCharacters,
+  populateFloorFurniture,
+  populateFloorCharacters,
   createNameTagLayer,
   syncNameTags,
   updateActors,
@@ -42,9 +44,10 @@ export async function initWebglRipple() {
   sceneReady = new Promise((resolve) => { finishFirstFrame = resolve; });
   let assetsReady = false;
   let firstFrameRendered = false;
-  const sceneAssets = new THREE.LoadingManager(() => { assetsReady = true; });
-  // Bắt đầu tải Kenney GLB + FBX song song lúc dựng phòng
-  const kitPromise = loadOfficeKit(sceneAssets);
+  const sceneAssets = new THREE.LoadingManager();
+  // Furniture nhẹ trước · FBX nhân vật nặng song song (không chặn first paint)
+  const furniturePromise = loadFurniture(sceneAssets);
+  const charsPromise = loadCharacters(sceneAssets);
 
   // Let the loader paint before allocating the large diorama. This keeps the
   // first HTML frame responsive on mobile and in Lighthouse's throttled run.
@@ -2680,16 +2683,30 @@ export async function initWebglRipple() {
 
   scene.add(building);
 
-  // Cast: nhân vật + nội thất GLB (sau khi building sẵn)
+  // Cast: nội thất trước (mở scene sớm) · nhân vật FBX gắn sau
   let officeActors = [];
   const nameTagLayer = createNameTagLayer();
   try {
-    const kit = await kitPromise;
-    const populated = populateFloors(floors, kit);
-    officeActors = populated.actors;
+    const furniture = await furniturePromise;
+    populateFloorFurniture(floors, furniture);
   } catch (err) {
-    console.error("Office cast unavailable", err);
+    console.error("Office furniture unavailable", err);
   }
+  // Cho phép tắt loading sau furniture — không chờ FBX
+  assetsReady = true;
+
+  charsPromise
+    .then((chars) => {
+      const populated = populateFloorCharacters(floors, {
+        charRoot: chars.charRoot,
+        idleClip: chars.idleClip,
+        runClip: chars.runClip,
+      });
+      officeActors = populated.actors;
+    })
+    .catch((err) => {
+      console.error("Office characters unavailable", err);
+    });
 
   // Meeting room interactive refs (floor index 1)
   const meetProps = floors[1]?.getObjectByName("props");
