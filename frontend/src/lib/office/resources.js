@@ -101,6 +101,8 @@ export const FURNITURE_BY_FLOOR = [
       rotY: 0,
       center: true,
       scaleMul: 0.85,
+      // Gỗ ấm nhẹ — gần accent gold landing
+      mau: { wood: "#c4a574" },
     },
     {
       name: "loungeChair",
@@ -109,6 +111,8 @@ export const FURNITURE_BY_FLOOR = [
       z: -0.35,
       rotY: 1.09,
       center: true,
+      // Nệm navy + khung gỗ ấm — khớp landing (--landing-secondary / accent)
+      mau: { carpet: "#19314a", wood: "#a68040" },
     },
     {
       name: "loungeChair",
@@ -117,6 +121,7 @@ export const FURNITURE_BY_FLOOR = [
       z: 0.4,
       rotY: -2.05,
       center: true,
+      mau: { carpet: "#19314a", wood: "#a68040" },
     },
     {
       name: "lampRoundFloor",
@@ -148,7 +153,7 @@ export const FURNITURE_BY_FLOOR = [
       rotY: 0,
       center: true,
       scaleMul: 1.3007 / (2.15 * 0.8),
-      mau: { carpet: "#2F3338", metalMedium: "#9AA0A6" },
+      mau: { carpet: "#19314a", metalMedium: "#9AA0A6" },
     },
     {
       name: "chairDesk",
@@ -158,7 +163,7 @@ export const FURNITURE_BY_FLOOR = [
       rotY: 0,
       center: true,
       scaleMul: 1.3007 / (2.15 * 0.8),
-      mau: { carpet: "#2F3338", metalMedium: "#9AA0A6" },
+      mau: { carpet: "#19314a", metalMedium: "#9AA0A6" },
     },
     {
       name: "chairDesk",
@@ -168,7 +173,7 @@ export const FURNITURE_BY_FLOOR = [
       rotY: -Math.PI / 2,
       center: true,
       scaleMul: 1.3007 / (2.15 * 0.8),
-      mau: { carpet: "#2F3338", metalMedium: "#9AA0A6" },
+      mau: { carpet: "#19314a", metalMedium: "#9AA0A6" },
     },
     {
       name: "pottedPlant",
@@ -200,7 +205,7 @@ export const FURNITURE_BY_FLOOR = [
       rotY: Math.PI,
       center: true,
       scaleMul: 1.3007 / (2.15 * 0.8),
-      mau: { carpet: "#2F3338", metalMedium: "#9AA0A6" },
+      mau: { carpet: "#19314a", metalMedium: "#9AA0A6" },
     },
     {
       name: "chairDesk",
@@ -210,7 +215,7 @@ export const FURNITURE_BY_FLOOR = [
       rotY: Math.PI / 2,
       center: true,
       scaleMul: 1.3007 / (2.15 * 0.8),
-      mau: { carpet: "#2F3338", metalMedium: "#9AA0A6" },
+      mau: { carpet: "#19314a", metalMedium: "#9AA0A6" },
     },
   ],
   // 4 Contact — phòng riêng CEO (sofa đen sát tường + bàn trà kính; bàn/màn procedural)
@@ -223,7 +228,7 @@ export const FURNITURE_BY_FLOOR = [
       rotY: 0,
       center: true,
       scaleMul: 1.3007 / (2.15 * 0.8),
-      mau: { carpet: "#2F3338", metalMedium: "#9AA0A6" },
+      mau: { carpet: "#19314a", metalMedium: "#9AA0A6" },
     },
     // Sofa thẳng 1 line đen sát tường +X (nhỏ hơn)
     {

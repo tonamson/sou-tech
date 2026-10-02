@@ -5,7 +5,10 @@
 import * as THREE from "three";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
-import { LOBBY_RECEPTIONIST_Z } from "@/src/lib/office/resources";
+import {
+  FURNITURE_BY_FLOOR,
+  LOBBY_RECEPTIONIST_Z,
+} from "@/src/lib/office/resources";
 
 const BASE = "/client/models/character";
 const SKIN_BASE = `${BASE}/skins`;
@@ -186,11 +189,11 @@ export const CAST_BY_FLOOR = [
       wave: true,
     },
   ],
-  // Meet = phòng coaching 1:1: Tư Vấn Viên (vest) + Client
+  // Meet = phòng coaching 1:1: Tư Vấn Viên (vest) + Khách Hàng
   [
     {
       id: "coach",
-      label: "Client",
+      label: "Khách Hàng",
       sub: "Meet",
       // Lệch nhẹ về phía trước ghế như VP sin/cos(quay)*0.07
       x: -0.55 + Math.sin(1.09) * 0.07,
@@ -200,6 +203,8 @@ export const CAST_BY_FLOOR = [
       sit: true,
       sitStyle: "lounge",
       talkPhase: 0,
+      // Đi chậm hơn TV / NV khác
+      walkSpeed: 0.55,
     },
     {
       id: "hv-coach",
@@ -410,6 +415,12 @@ export function spawnActor(charKit, spec, floorIndex) {
     standTalk: false,
     coffee: false,
     walking: false,
+    /** Đang đi về ghế — chạm hitbox thì tự ngồi (null = ghế home). */
+    seekSeat: false,
+    seekSeatX: null,
+    seekSeatZ: null,
+    seekSeatRotY: null,
+    walkSpeed: spec.walkSpeed ?? WALK_SPEED,
     walkTx: spec.x,
     walkTz: spec.z,
     hipsY,
@@ -423,12 +434,134 @@ export function spawnActor(charKit, spec, floorIndex) {
   return actor;
 }
 
-/**
- * Cập nhật idle + hành vi (lễ tân vẫy tay ~2.2s mỗi 9–15s — port VP).
- * @param {Array} actors
- * @param {number} dt
- */
 const WALK_SPEED = 1.15;
+/** Bán kính hitbox ngồi (chạm → ngồi nếu đang seekSeat). */
+const SEAT_SIT_R = 0.28;
+/** Bán kính chặn đi xuyên ghế / bàn (lounge khá to). */
+const CHAIR_BLOCK_R = 0.55;
+const TABLE_BLOCK_R = 0.45;
+
+const SIT_FURN = new Set([
+  "loungeChair",
+  "chairDesk",
+  "loungeDesignSofa",
+]);
+
+/** Cache collider nội thất theo tầng (ghế ngồi + bàn chặn). */
+const _floorColliders = [];
+function collidersForFloor(floorIndex) {
+  if (_floorColliders[floorIndex]) return _floorColliders[floorIndex];
+  const list = (FURNITURE_BY_FLOOR[floorIndex] || [])
+    .filter(
+      (f) =>
+        SIT_FURN.has(f.name) ||
+        f.name.startsWith("table") ||
+        f.name.includes("Sofa"),
+    )
+    .map((f) => {
+      const sit = SIT_FURN.has(f.name) || f.name.includes("Sofa");
+      // Sofa dài — bán kính vừa phải để còn lối đứng dậy
+      const r = f.name.includes("Sofa")
+        ? 0.48
+        : sit
+          ? CHAIR_BLOCK_R
+          : TABLE_BLOCK_R;
+      return { x: f.x, z: f.z, r, sit };
+    });
+  _floorColliders[floorIndex] = list;
+  return list;
+}
+
+function seatAim(p) {
+  return {
+    x: p.seekSeatX ?? p.homeX,
+    z: p.seekSeatZ ?? p.homeZ,
+    rotY: p.seekSeatRotY ?? p.homeRotY,
+  };
+}
+
+/** Ghế nhà / ghế đang seek / ghế đang đứng bên trong. */
+function isOwnSeatCollider(p, c) {
+  if (!c.sit || !p.sit || p.homeFloor !== p.floor) return false;
+  if (Math.hypot(c.x - p.homeX, c.z - p.homeZ) < 0.55) return true;
+  if (
+    p.seekSeatX != null &&
+    Math.hypot(c.x - p.seekSeatX, c.z - p.seekSeatZ) < 0.8
+  ) {
+    return true;
+  }
+  // Vừa ngồi / đang đứng dậy trong collider (sofa ≠ home)
+  return Math.hypot(c.x - p.root.position.x, c.z - p.root.position.z) < c.r;
+}
+
+/** Chạm hitbox ghế đích + seekSeat → snap ngồi. */
+function tryAutoSit(p, x, z) {
+  if (!p.sit || !p.seekSeat) return false;
+  if (p.floor !== p.homeFloor) return false;
+  const aim = seatAim(p);
+  if (Math.hypot(x - aim.x, z - aim.z) > SEAT_SIT_R) return false;
+  p.root.position.set(aim.x, 0, aim.z);
+  p.root.rotation.y = aim.rotY;
+  p.sitTarget = 1;
+  p.seekSeat = false;
+  p.seekSeatX = null;
+  p.seekSeatZ = null;
+  p.seekSeatRotY = null;
+  setWalkBlend(p, false);
+  return true;
+}
+
+/**
+ * Đứng dậy còn trong ghế → đẩy ra ngoài hitbox theo hướng mục tiêu.
+ * Tránh bước đầu tiên xuyên mesh ghế / sofa.
+ */
+function ejectFromOwnSeat(p, tx, tz) {
+  if (p.seekSeat) return;
+  for (const b of collidersForFloor(p.floor ?? 0)) {
+    if (!isOwnSeatCollider(p, b)) continue;
+    const px = p.root.position.x - b.x;
+    const pz = p.root.position.z - b.z;
+    if (Math.hypot(px, pz) >= b.r - 0.01) continue;
+    let ex = tx - b.x;
+    let ez = tz - b.z;
+    let el = Math.hypot(ex, ez);
+    if (el < 1e-4) {
+      ex = Math.sin(p.root.rotation.y);
+      ez = Math.cos(p.root.rotation.y);
+      el = Math.hypot(ex, ez) || 1;
+    }
+    const clearR = b.r + 0.08;
+    p.root.position.x = b.x + (ex / el) * clearR;
+    p.root.position.z = b.z + (ez / el) * clearR;
+    p.root.position.y = 0;
+  }
+}
+
+/**
+ * Đẩy ra khỏi collider ghế/bàn.
+ * Ghế nhà chỉ bỏ chặn khi seekSeat (đi vào ngồi).
+ */
+function resolveBlocks(p, nx, nz) {
+  const blocks = collidersForFloor(p.floor ?? 0);
+  for (let pass = 0; pass < 3; pass++) {
+    for (const b of blocks) {
+      if (p.seekSeat && isOwnSeatCollider(p, b)) continue;
+      const dx = nx - b.x;
+      const dz = nz - b.z;
+      const d = Math.hypot(dx, dz);
+      if (d >= b.r) continue;
+      if (d < 1e-5) {
+        nx = b.x + b.r;
+        nz = b.z;
+      } else {
+        const s = b.r / d;
+        nx = b.x + dx * s;
+        nz = b.z + dz * s;
+      }
+    }
+  }
+  return { x: nx, z: nz };
+}
 
 /** Blend idle/run theo trạng thái đi bộ. */
 function setWalkBlend(p, on) {
@@ -438,21 +571,35 @@ function setWalkBlend(p, on) {
   p.runAction?.setEffectiveWeight(w);
 }
 
-/** Đi tới (x,z) trên floor hiện tại; true = đã tới. */
+/** Đi tới (x,z) trên floor hiện tại; true = đã tới (hoặc đã tự ngồi). */
 function stepWalk(p, tx, tz, dt) {
+  if (tryAutoSit(p, p.root.position.x, p.root.position.z)) return true;
+
+  // Lúc rời ghế: đẩy ra ngoài hitbox trước khi bước
+  ejectFromOwnSeat(p, tx, tz);
+
   const dx = tx - p.root.position.x;
   const dz = tz - p.root.position.z;
   const dist = Math.hypot(dx, dz);
   if (dist < 0.06) {
-    p.root.position.x = tx;
-    p.root.position.z = tz;
+    if (tryAutoSit(p, tx, tz)) return true;
+    const at = resolveBlocks(p, tx, tz);
+    p.root.position.x = at.x;
+    p.root.position.z = at.z;
     setWalkBlend(p, false);
     return true;
   }
   setWalkBlend(p, true);
-  const step = Math.min(dist, WALK_SPEED * dt);
-  p.root.position.x += (dx / dist) * step;
-  p.root.position.z += (dz / dist) * step;
+  const speed = p.walkSpeed ?? WALK_SPEED;
+  const step = Math.min(dist, speed * dt);
+  let nx = p.root.position.x + (dx / dist) * step;
+  let nz = p.root.position.z + (dz / dist) * step;
+
+  if (tryAutoSit(p, nx, nz)) return true;
+
+  const resolved = resolveBlocks(p, nx, nz);
+  p.root.position.x = resolved.x;
+  p.root.position.z = resolved.z;
   p.root.rotation.y = Math.atan2(dx, dz);
   p.root.position.y = 0;
   return false;
@@ -479,7 +626,16 @@ function byId(actors, id) {
 }
 
 /** Luồng Meet↔Labs — state machine. */
-const flow = { phase: "meet_talk", t: 0, wp: 0, wp2: 0, tvParked: false };
+const flow = {
+  phase: "meet_talk",
+  t: 0,
+  wp: 0,
+  wp2: 0,
+  wp3: 0,
+  tvParked: false,
+  clientAtWall: false,
+  clientHome: true,
+};
 
 /** Luồng CEO Contact: bàn → pha cafe → sofa nói chuyện → về bàn. */
 const ceoFlow = {
@@ -516,7 +672,7 @@ function stepKeyedPath(p, path, dt, state, key = "wp") {
 
 /**
  * Đi theo chuỗi waypoint; true = hết path.
- * @param {"wp"|"wp2"} key — index riêng khi 2 người đi song song
+ * @param {"wp"|"wp2"|"wp3"} key — index riêng khi nhiều người đi song song
  */
 function stepPath(p, path, dt, key = "wp") {
   if (!path.length) return true;
@@ -547,15 +703,28 @@ function updatePmCeoFlow(actors, floors, dt) {
   if (!pm || !ceo || !floors?.length) return;
 
   // Ship side=-1 cửa +X · Contact side=1 cửa −X
+  // Ghế PM (0.4,1.15) r=0.55 · Tester (−1.32,0.25)
+  const SHIP_CLEAR = { x: 1.1, z: 1.15 }; // ngang ghế PM (+X)
+  const SHIP_LANE = { x: 1.2, z: 0.25 }; // dọc tường +X
   const SHIP_DOOR = { x: 1.2, z: -0.45 };
   const SHIP_OUT = { x: 1.55, z: -0.45 };
-  // Làn sau ghế PM — né mặt bàn
-  const SHIP_BACK = { x: 1.2, z: 1.2 };
+  const PM_HOME = { x: pm.homeX, z: pm.homeZ };
+  // Contact: bàn trà (0.38,0.55) r=0.45 · ghế CEO (0,−1.03) — nói chuyện trước bàn, né bàn trà
   const CONTACT_OUT = { x: -1.55, z: -0.45 };
   const CONTACT_DOOR = { x: -1.15, z: -0.45 };
-  const CONTACT_LANE = { x: -0.95, z: 0.35 };
-  const PM_TALK = { x: 0, z: 0.35 };
-  const PM_HOME = { x: pm.homeX, z: pm.homeZ };
+  const CONTACT_LANE = { x: -1.05, z: 0.05 };
+  const PM_TALK = { x: 0, z: 0.05 };
+  const SHIP_TO_DOOR = [SHIP_CLEAR, SHIP_LANE, SHIP_DOOR, SHIP_OUT];
+  const SHIP_TO_HOME = [SHIP_DOOR, SHIP_LANE, SHIP_CLEAR, PM_HOME];
+  const CONTACT_TO_TALK = [CONTACT_DOOR, CONTACT_LANE, PM_TALK];
+  const CONTACT_TO_OUT = [CONTACT_LANE, CONTACT_DOOR, CONTACT_OUT];
+
+  const clearPmSeek = () => {
+    pm.seekSeat = false;
+    pm.seekSeatX = null;
+    pm.seekSeatZ = null;
+    pm.seekSeatRotY = null;
+  };
 
   const go = (phase, hold) => {
     pmCeo.phase = phase;
@@ -573,6 +742,7 @@ function updatePmCeoFlow(actors, floors, dt) {
       pm.type = true;
       pm.standTalk = false;
       pm.talkPhase = null;
+      clearPmSeek();
       if (
         pmCeo.t > pmCeo.hold &&
         !ceoFlow.paused &&
@@ -581,19 +751,20 @@ function updatePmCeoFlow(actors, floors, dt) {
       ) {
         pm.sitTarget = 0;
         pm.type = false;
+        clearPmSeek();
         go("pm_stand");
       }
       break;
     }
     case "pm_stand": {
+      clearPmSeek();
       if (pm.sitF < 0.08 && pmCeo.t > 0.45) go("pm_exit_ship");
       break;
     }
     case "pm_exit_ship": {
-      // Sau ghế → tường +X → cửa
-      if (
-        stepKeyedPath(pm, [SHIP_BACK, SHIP_DOOR, SHIP_OUT], dt, pmCeo, "wp")
-      ) {
+      clearPmSeek();
+      // Ngang ghế → dọc tường +X → cửa (không xuyên ghế PM)
+      if (stepKeyedPath(pm, SHIP_TO_DOOR, dt, pmCeo, "wp")) {
         ceoFlow.paused = true;
         ceo.sitTarget = 1;
         ceo.sitStyle = "desk";
@@ -602,23 +773,19 @@ function updatePmCeoFlow(actors, floors, dt) {
         ceo.coffee = false;
         ceo.standTalk = false;
         ceo.talkPhase = null;
+        ceo.seekSeat = false;
         ceo.root.position.set(ceo.homeX, 0, ceo.homeZ);
         ceo.root.rotation.y = ceo.homeRotY;
         attachFloor(pm, floors, 4, CONTACT_OUT.x, CONTACT_OUT.z);
+        clearPmSeek();
         go("pm_enter");
       }
       break;
     }
     case "pm_enter": {
-      if (
-        stepKeyedPath(
-          pm,
-          [CONTACT_DOOR, CONTACT_LANE, PM_TALK],
-          dt,
-          pmCeo,
-          "wp",
-        )
-      ) {
+      clearPmSeek();
+      // Cửa −X → làn trái (né bàn trà) → đứng trước bàn CEO
+      if (stepKeyedPath(pm, CONTACT_TO_TALK, dt, pmCeo, "wp")) {
         pm.root.position.set(PM_TALK.x, 0, PM_TALK.z);
         faceToward(pm, ceo.homeX, ceo.homeZ);
         setWalkBlend(pm, false);
@@ -653,30 +820,27 @@ function updatePmCeoFlow(actors, floors, dt) {
       break;
     }
     case "pm_leave": {
-      if (
-        stepKeyedPath(
-          pm,
-          [CONTACT_LANE, CONTACT_DOOR, CONTACT_OUT],
-          dt,
-          pmCeo,
-          "wp",
-        )
-      ) {
+      clearPmSeek();
+      if (stepKeyedPath(pm, CONTACT_TO_OUT, dt, pmCeo, "wp")) {
         attachFloor(pm, floors, 3, SHIP_OUT.x, SHIP_OUT.z);
         go("pm_home");
       }
       break;
     }
     case "pm_home": {
-      if (
-        stepKeyedPath(pm, [SHIP_DOOR, SHIP_BACK, PM_HOME], dt, pmCeo, "wp")
-      ) {
+      // seekSeat — chạm ghế PM tự ngồi (không kẹt ngoài hitbox)
+      pm.seekSeat = true;
+      pm.seekSeatX = PM_HOME.x;
+      pm.seekSeatZ = PM_HOME.z;
+      pm.seekSeatRotY = pm.homeRotY;
+      if (stepKeyedPath(pm, SHIP_TO_HOME, dt, pmCeo, "wp")) {
         pm.root.position.set(PM_HOME.x, 0, PM_HOME.z);
         pm.root.rotation.y = pm.homeRotY;
         pm.sitTarget = 1;
         pm.type = true;
         pm.standTalk = false;
         pm.talkPhase = null;
+        clearPmSeek();
         setWalkBlend(pm, false);
 
         ceo.root.position.set(ceo.homeX, 0, ceo.homeZ);
@@ -715,12 +879,21 @@ function updateCeoFlow(actors, dt) {
 
   const COFFEE = { x: -0.95, z: 0.95 };
   const SOFA = { x: 1.12, z: 0.55 };
+  const SOFA_ROT = -Math.PI / 2;
   const DESK = { x: ceo.homeX, z: ceo.homeZ };
-  // Làn trái ngoài bàn CEO · làn trước (né bàn trà 0.38,0.55)
-  const BEHIND = { x: -0.95, z: -1.2 };
-  const LEFT_CLEAR = { x: -0.95, z: 0.25 };
-  const LEFT_FRONT = { x: -0.95, z: 1.15 };
+  // Ghế desk (0,−1.03) r=0.55 · sofa (1.38,0.55) · bàn trà (0.38,0.55)
+  // Làn −X ngoài bàn CEO · trước sofa (ngoài collider)
+  const BEHIND = { x: -1.05, z: -1.15 };
+  const LEFT_CLEAR = { x: -1.05, z: 0.2 };
+  const LEFT_FRONT = { x: -1.05, z: 1.15 };
   const FRONT_SOFA = { x: 1.12, z: 1.15 };
+
+  const clearSeek = () => {
+    ceo.seekSeat = false;
+    ceo.seekSeatX = null;
+    ceo.seekSeatZ = null;
+    ceo.seekSeatRotY = null;
+  };
 
   const go = (phase, hold) => {
     ceoFlow.phase = phase;
@@ -740,22 +913,27 @@ function updateCeoFlow(actors, dt) {
       ceo.coffee = false;
       ceo.talkPhase = null;
       ceo.standTalk = false;
+      clearSeek();
       if (ceoFlow.t > ceoFlow.hold) {
         ceo.sitTarget = 0;
         ceo.type = false;
+        clearSeek();
         go("desk_stand");
       }
       break;
     }
     case "desk_stand": {
+      clearSeek();
       if (ceo.sitF < 0.08 && ceoFlow.t > 0.5) go("walk_coffee");
       break;
     }
     case "walk_coffee": {
-      // Lùi sau ghế → dọc tường −X → máy cafe (không cắt bàn làm việc)
+      clearSeek();
+      // Lùi sau ghế → dọc tường −X → máy cafe (không cắt bàn / ghế)
       if (stepCeoPath(ceo, [BEHIND, LEFT_CLEAR, LEFT_FRONT, COFFEE], dt)) {
         ceo.root.position.set(COFFEE.x, 0, COFFEE.z);
         faceToward(ceo, -1.36, 0.95);
+        setWalkBlend(ceo, false);
         ceo.coffee = true;
         go("brew", 3.2 + Math.random() * 1.2);
       }
@@ -771,13 +949,20 @@ function updateCeoFlow(actors, dt) {
       break;
     }
     case "walk_sofa": {
+      // seekSeat sofa — không bị collider sofa chặn khi vào ngồi
+      ceo.seekSeat = true;
+      ceo.seekSeatX = SOFA.x;
+      ceo.seekSeatZ = SOFA.z;
+      ceo.seekSeatRotY = SOFA_ROT;
+      ceo.sitStyle = "lounge";
+      ceo.seatY = SEAT_Y_LOUNGE;
       if (stepCeoPath(ceo, [LEFT_FRONT, FRONT_SOFA, SOFA], dt)) {
         ceo.root.position.set(SOFA.x, 0, SOFA.z);
-        ceo.root.rotation.y = -Math.PI / 2;
-        ceo.sitStyle = "lounge";
-        ceo.seatY = SEAT_Y_LOUNGE;
+        ceo.root.rotation.y = SOFA_ROT;
         ceo.sitTarget = 1;
         ceo.talkPhase = 0;
+        clearSeek();
+        setWalkBlend(ceo, false);
         go("sofa_talk", 6 + Math.random() * 3);
       }
       break;
@@ -785,33 +970,41 @@ function updateCeoFlow(actors, dt) {
     case "sofa_talk": {
       ceo.root.position.x = SOFA.x;
       ceo.root.position.z = SOFA.z;
-      ceo.root.rotation.y = -Math.PI / 2;
+      ceo.root.rotation.y = SOFA_ROT;
       ceo.sitTarget = 1;
       ceo.talkPhase = 0;
+      clearSeek();
       if (ceoFlow.t > ceoFlow.hold) {
         ceo.talkPhase = null;
         ceo.sitTarget = 0;
+        clearSeek();
         go("sofa_stand");
       }
       break;
     }
     case "sofa_stand": {
+      clearSeek();
       if (ceo.sitF < 0.08 && ceoFlow.t > 0.5) go("walk_desk");
       break;
     }
     case "walk_desk": {
-      // Sofa → trước → tường −X → sau ghế → ngồi (không đi xuyên bàn CEO)
+      // Sofa → trước → tường −X → sau ghế → ngồi (seekSeat ghế bàn)
+      ceo.seekSeat = true;
+      ceo.seekSeatX = DESK.x;
+      ceo.seekSeatZ = DESK.z;
+      ceo.seekSeatRotY = ceo.homeRotY;
+      ceo.sitStyle = "desk";
+      ceo.seatY = SEAT_Y_DESK;
       if (
         stepCeoPath(ceo, [FRONT_SOFA, LEFT_FRONT, LEFT_CLEAR, BEHIND, DESK], dt)
       ) {
         ceo.root.position.set(DESK.x, 0, DESK.z);
         ceo.root.rotation.y = ceo.homeRotY;
-        ceo.sitStyle = "desk";
-        ceo.seatY = SEAT_Y_DESK;
         ceo.sitTarget = 1;
         ceo.type = true;
         ceo.coffee = false;
         ceo.talkPhase = null;
+        clearSeek();
         setWalkBlend(ceo, false);
         go("desk_work", 9 + Math.random() * 6);
       }
@@ -910,10 +1103,29 @@ export function updateOfficeFlow(actors, floors, dt) {
   };
 
   // Cửa: Meet side=-1 → +X · Labs side=1 → −X
-  const MEET_DOOR = { x: 1.15, z: -0.45 };
+  // TV hợp lý: đứng → bước ngang ghế sát tường +X → dọc tường xuống cửa
+  // (không vòng +Z rồi quay lại). Ghế TV (0.55,0.4) r=0.55 · bàn (0,0.05) · cây (1.05,−0.8)
+  const MEET_CLEAR = { x: 1.2, z: 0.35 }; // ngang ghế, ngoài collider
+  const MEET_LANE = { x: 1.2, z: -0.05 }; // giữa tường +X (né bàn)
+  const MEET_DOOR = { x: 1.2, z: -0.45 };
   const MEET_OUT = { x: 1.55, z: -0.45 };
-  // Meet: né bàn tròn + ghế — đi sát tường +X
-  const MEET_SIDE = { x: 1.05, z: 0.55 };
+  const TV_TO_DOOR = [MEET_CLEAR, MEET_LANE, MEET_DOOR, MEET_OUT];
+  const TV_TO_HOME = [
+    MEET_DOOR,
+    MEET_LANE,
+    MEET_CLEAR,
+    { x: tv.homeX, z: tv.homeZ },
+  ];
+  // Khách Hàng: lui thẳng −Z ra khỏi ghế → dọc tường sau → biểu ngữ
+  const CLIENT_CLEAR = { x: -0.55, z: -0.98 };
+  const CLIENT_LANE = { x: -0.15, z: -0.98 };
+  const CLIENT_VIEW = { x: 0.2, z: -0.98 };
+  const CLIENT_TO_WALL = [CLIENT_CLEAR, CLIENT_LANE, CLIENT_VIEW];
+  const CLIENT_TO_HOME = [
+    CLIENT_LANE,
+    CLIENT_CLEAR,
+    { x: client.homeX, z: client.homeZ },
+  ];
   const LABS_DOOR = { x: -1.15, z: -0.45 };
   const LABS_OUT = { x: -1.55, z: -0.45 };
   // Labs lanes (né bàn/ghế/rack):
@@ -925,6 +1137,34 @@ export function updateOfficeFlow(actors, floors, dt) {
   const DES_TALK = { x: -0.55, z: 0.12 };
   const DATA_TALK = { x: 0.45, z: 0.12 };
 
+  // Khách Hàng đứng dậy → đứng gần tường 4 biểu ngữ (song song TV đi Labs)
+  const tickClientToWall = () => {
+    client.talkPhase = null;
+    client.sitTarget = 0;
+    client.seekSeat = false;
+    if (flow.clientAtWall) {
+      faceToward(client, 0, -1.35);
+      setWalkBlend(client, false);
+      return;
+    }
+    if (client.sitF > 0.08) return;
+    if (stepPath(client, CLIENT_TO_WALL, dt, "wp3")) {
+      faceToward(client, 0, -1.35);
+      setWalkBlend(client, false);
+      flow.clientAtWall = true;
+      flow.clientHome = false;
+    }
+  };
+
+  /** Về ghế nhà — bật seekSeat để chạm hitbox tự ngồi. */
+  const parkAtSeat = (p) => {
+    p.root.position.set(p.homeX, 0, p.homeZ);
+    p.root.rotation.y = p.homeRotY;
+    p.sitTarget = 1;
+    p.seekSeat = false;
+    setWalkBlend(p, false);
+  };
+
   switch (flow.phase) {
     case "meet_talk": {
       tv.sitTarget = 1;
@@ -935,27 +1175,43 @@ export function updateOfficeFlow(actors, floors, dt) {
       client.talkPhase = 0;
       ks.sitTarget = 1;
       ks.standTalk = false;
+      flow.clientAtWall = false;
+      flow.clientHome = true;
       if (flow.t > 7) {
         tv.sitTarget = 0;
+        tv.seekSeat = false;
+        // TV rời → Khách Hàng ngừng nói, đứng dậy xem tường biểu ngữ
+        client.talkPhase = null;
+        client.sitTarget = 0;
+        client.seekSeat = false;
+        flow.wp3 = 0;
+        flow.clientAtWall = false;
         go("tv_stand");
       }
       break;
     }
     case "tv_stand": {
+      tv.seekSeat = false;
+      tickClientToWall();
       if (tv.sitF < 0.08 && flow.t > 0.6) go("tv_out");
       break;
     }
     case "tv_out": {
-      if (stepPath(tv, [MEET_SIDE, MEET_DOOR, MEET_OUT], dt)) go("tv_cross");
+      tv.seekSeat = false;
+      tickClientToWall();
+      if (stepPath(tv, TV_TO_DOOR, dt)) go("tv_cross");
       break;
     }
     case "tv_cross": {
+      tickClientToWall();
       attachFloor(tv, floors, 2, LABS_OUT.x, LABS_OUT.z);
       ks.sitTarget = 0;
+      ks.seekSeat = false;
       go("tv_in_labs");
       break;
     }
     case "tv_in_labs": {
+      tickClientToWall();
       // Cửa → west → mid → trước bàn KS (không xuyên bàn)
       if (
         stepPath(tv, [LABS_DOOR, LABS_WEST, LABS_MID, TV_AT_KS], dt, "wp") &&
@@ -975,6 +1231,7 @@ export function updateOfficeFlow(actors, floors, dt) {
       break;
     }
     case "meet_ks": {
+      tickClientToWall();
       ks.root.position.set(ks.homeX, 0, ks.homeZ);
       if (flow.t > 4.5) {
         tv.standTalk = false;
@@ -986,30 +1243,34 @@ export function updateOfficeFlow(actors, floors, dt) {
       break;
     }
     case "tv_leave_labs": {
+      tickClientToWall();
       if (stepPath(tv, [LABS_MID, LABS_WEST, LABS_DOOR, LABS_OUT], dt)) {
         attachFloor(tv, floors, 1, MEET_OUT.x, MEET_OUT.z);
+        flow.wp3 = 0; // bắt đầu đường về ghế
         go("tv_home_and_ks_tour");
       }
       break;
     }
     case "tv_home_and_ks_tour": {
-      // Song song: TV về ghế · KS vòng bàn rồi nói Designer
+      // Song song: TV về ghế · Khách Hàng về ghế từ tường · KS đi nói Designer
       if (!flow.tvParked) {
-        if (
-          stepPath(
-            tv,
-            [MEET_DOOR, MEET_SIDE, { x: tv.homeX, z: tv.homeZ }],
-            dt,
-            "wp",
-          )
-        ) {
-          tv.root.rotation.y = tv.homeRotY;
-          tv.sitTarget = 1;
+        tv.seekSeat = true;
+        if (stepPath(tv, TV_TO_HOME, dt, "wp")) {
+          parkAtSeat(tv);
           tv.talkPhase = 1;
-          client.talkPhase = 0;
-          setWalkBlend(tv, false);
           flow.tvParked = true;
         }
+      }
+      if (!flow.clientHome) {
+        client.seekSeat = true;
+        if (stepPath(client, CLIENT_TO_HOME, dt, "wp3")) {
+          parkAtSeat(client);
+          client.talkPhase = 0;
+          flow.clientAtWall = false;
+          flow.clientHome = true;
+        }
+      } else if (flow.tvParked) {
+        client.talkPhase = 0;
       }
       // KS: lui −Z khỏi bàn → mid → trước bàn Designer
       if (stepPath(ks, [KS_OUT, LABS_MID, DES_TALK], dt, "wp2")) {
@@ -1030,75 +1291,90 @@ export function updateOfficeFlow(actors, floors, dt) {
       }
       break;
     }
-    case "ks_talk_des": {
-      if (flow.t > 3.2) {
-        ks.standTalk = false;
-        ks.talkPhase = null;
-        if (des) {
-          des.talkPhase = null;
-          des.type = true;
-          des.root.rotation.y = des.homeRotY;
-        }
-        go("ks_to_data");
-      }
-      break;
-    }
-    case "ks_to_data": {
-      // Dọc lối mid (z≈0.02) — không cắt xuyên bàn sau
-      if (
-        stepPath(
-          ks,
-          [
-            { x: -0.55, z: 0.02 },
-            { x: 0.45, z: 0.02 },
-            DATA_TALK,
-          ],
-          dt,
-        )
-      ) {
-        faceToward(
-          ks,
-          data?.root.position.x ?? 0.45,
-          data?.root.position.z ?? -1.1,
-        );
-        if (data) {
-          faceToward(data, ks.root.position.x, ks.root.position.z);
-          data.talkPhase = 1;
-          data.type = false;
-        }
-        ks.standTalk = true;
-        ks.talkPhase = 0;
-        go("ks_talk_data");
-      }
-      break;
-    }
-    case "ks_talk_data": {
-      if (flow.t > 3.2) {
-        ks.standTalk = false;
-        ks.talkPhase = null;
-        if (data) {
-          data.talkPhase = null;
-          data.type = true;
-          data.root.rotation.y = data.homeRotY;
-        }
-        go("ks_home");
-      }
-      break;
-    }
+    case "ks_talk_des":
+    case "ks_to_data":
+    case "ks_talk_data":
     case "ks_home": {
-      // Mid → KS_OUT (+X ngoài bàn) → ghế
-      if (
-        stepPath(
-          ks,
-          [{ x: 0.45, z: 0.02 }, KS_OUT, { x: ks.homeX, z: ks.homeZ }],
-          dt,
-        )
-      ) {
-        ks.root.rotation.y = ks.homeRotY;
-        ks.sitTarget = 1;
-        ks.type = true;
-        ks.talkPhase = null;
-        go("wait");
+      // Khách Hàng có thể còn đang về ghế sau khi KS đã chuyển phase
+      if (!flow.clientHome) {
+        client.seekSeat = true;
+        if (stepPath(client, CLIENT_TO_HOME, dt, "wp3")) {
+          parkAtSeat(client);
+          client.talkPhase = 0;
+          flow.clientAtWall = false;
+          flow.clientHome = true;
+        }
+      }
+
+      if (flow.phase === "ks_talk_des") {
+        if (flow.t > 3.2) {
+          ks.standTalk = false;
+          ks.talkPhase = null;
+          if (des) {
+            des.talkPhase = null;
+            des.type = true;
+            des.root.rotation.y = des.homeRotY;
+          }
+          go("ks_to_data");
+        }
+        break;
+      }
+      if (flow.phase === "ks_to_data") {
+        if (
+          stepPath(
+            ks,
+            [
+              { x: -0.55, z: 0.02 },
+              { x: 0.45, z: 0.02 },
+              DATA_TALK,
+            ],
+            dt,
+          )
+        ) {
+          faceToward(
+            ks,
+            data?.root.position.x ?? 0.45,
+            data?.root.position.z ?? -1.1,
+          );
+          if (data) {
+            faceToward(data, ks.root.position.x, ks.root.position.z);
+            data.talkPhase = 1;
+            data.type = false;
+          }
+          ks.standTalk = true;
+          ks.talkPhase = 0;
+          go("ks_talk_data");
+        }
+        break;
+      }
+      if (flow.phase === "ks_talk_data") {
+        if (flow.t > 3.2) {
+          ks.standTalk = false;
+          ks.talkPhase = null;
+          if (data) {
+            data.talkPhase = null;
+            data.type = true;
+            data.root.rotation.y = data.homeRotY;
+          }
+          go("ks_home");
+        }
+        break;
+      }
+      // ks_home — chạm hitbox ghế tự ngồi
+      if (flow.phase === "ks_home") {
+        ks.seekSeat = true;
+        if (
+          stepPath(
+            ks,
+            [{ x: 0.45, z: 0.02 }, KS_OUT, { x: ks.homeX, z: ks.homeZ }],
+            dt,
+          )
+        ) {
+          parkAtSeat(ks);
+          ks.type = true;
+          ks.talkPhase = null;
+          go("wait");
+        }
       }
       break;
     }
